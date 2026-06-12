@@ -72,23 +72,133 @@ describe("Slack handoff Worker flow", () => {
     expect(response.status).toBe(200);
     expect(slackRequests).toHaveLength(0);
   });
+
+  it("replies once in-thread for duplicate signed alert channel bot events", async () => {
+    const slackRequests: Request[] = [];
+    const worker = createWorker<string>({
+      nowSeconds: () => 1710000000,
+      slackTransport: async (request) => {
+        slackRequests.push(request);
+
+        return Response.json({ ok: true, ts: "1710000001.000200" });
+      },
+    });
+    const env = createWorkerEnv({
+      ALERT_CHANNEL_IDS: "CALERT",
+      SLACK_BOT_USER_ID: "UTEZENTICA",
+    });
+    const body = JSON.stringify({
+      event: {
+        bot_id: "BALERT",
+        channel: "CALERT",
+        subtype: "bot_message",
+        text: "[critical] API latency high",
+        ts: "1710000000.000300",
+        type: "message",
+      },
+      team_id: "T123",
+      type: "event_callback",
+    });
+
+    const first = await worker.fetch(await createSignedSlackRequest(body), env);
+    const second = await worker.fetch(await createSignedSlackRequest(body), env);
+
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+    expect(slackRequests).toHaveLength(1);
+    expect(await slackRequests[0]?.json()).toEqual({
+      channel: "CALERT",
+      text: "<@UR5BOT> 심각도 분석해줘.\n원본 알람:\n```[critical] API latency high```",
+      thread_ts: "1710000000.000300",
+    });
+  });
+
+  it("ignores non-alert bot messages and Tezentica or target bot alert messages", async () => {
+    const slackRequests: Request[] = [];
+    const worker = createWorker<string>({
+      nowSeconds: () => 1710000000,
+      slackTransport: async (request) => {
+        slackRequests.push(request);
+
+        return Response.json({ ok: true, ts: "1710000001.000200" });
+      },
+    });
+    const env = createWorkerEnv({
+      ALERT_CHANNEL_IDS: "CALERT",
+      SLACK_BOT_USER_ID: "UTEZENTICA",
+    });
+    const nonAlertBody = JSON.stringify({
+      event: {
+        bot_id: "BALERT",
+        channel: "CNONALERT",
+        subtype: "bot_message",
+        text: "[critical] API latency high",
+        ts: "1710000000.000400",
+        type: "message",
+      },
+      team_id: "T123",
+      type: "event_callback",
+    });
+    const selfBody = JSON.stringify({
+      event: {
+        bot_id: "BTEZENTICA",
+        channel: "CALERT",
+        subtype: "bot_message",
+        text: "<@UR5BOT> 심각도 분석해줘.",
+        ts: "1710000000.000500",
+        type: "message",
+        user: "UTEZENTICA",
+      },
+      team_id: "T123",
+      type: "event_callback",
+    });
+    const targetBotBody = JSON.stringify({
+      event: {
+        bot_id: "BR5",
+        channel: "CALERT",
+        subtype: "bot_message",
+        text: "분석 결과입니다.",
+        ts: "1710000000.000550",
+        type: "message",
+        user: "UR5BOT",
+      },
+      team_id: "T123",
+      type: "event_callback",
+    });
+
+    const nonAlert = await worker.fetch(await createSignedSlackRequest(nonAlertBody), env);
+    const self = await worker.fetch(await createSignedSlackRequest(selfBody), env);
+    const targetBot = await worker.fetch(await createSignedSlackRequest(targetBotBody), env);
+
+    expect(nonAlert.status).toBe(200);
+    expect(self.status).toBe(200);
+    expect(targetBot.status).toBe(200);
+    expect(slackRequests).toHaveLength(0);
+  });
 });
 
-function createWorkerEnv(): {
-  readonly MESSAGE_DEDUPE: MessageDedupeNamespace<string>;
-  readonly OWNER_USER_ID: string;
-  readonly SLACK_BOT_TOKEN: string;
-  readonly SLACK_SIGNING_SECRET: string;
-  readonly TARGET_BOT_USER_ID: string;
-} {
+function createWorkerEnv(overrides: Partial<TestWorkerEnv> = {}): TestWorkerEnv {
   return {
+    ALERT_CHANNEL_IDS: "",
     MESSAGE_DEDUPE: new FakeDedupeNamespace(),
     OWNER_USER_ID: "UOWNER",
     SLACK_BOT_TOKEN: "xoxb-test",
+    SLACK_BOT_USER_ID: "UTEZENTICA",
     SLACK_SIGNING_SECRET: "secret",
     TARGET_BOT_USER_ID: "UR5BOT",
+    ...overrides,
   };
 }
+
+type TestWorkerEnv = {
+  readonly ALERT_CHANNEL_IDS: string;
+  readonly MESSAGE_DEDUPE: MessageDedupeNamespace<string>;
+  readonly OWNER_USER_ID: string;
+  readonly SLACK_BOT_TOKEN: string;
+  readonly SLACK_BOT_USER_ID: string;
+  readonly SLACK_SIGNING_SECRET: string;
+  readonly TARGET_BOT_USER_ID: string;
+};
 
 async function createSignedSlackRequest(body: string): Promise<Request> {
   const timestamp = "1710000000";

@@ -6,10 +6,12 @@ import { handleSlackEventsRequest } from "./slack/http";
 export { MessageDedupeObject } from "./dedupe-object";
 
 type WorkerRuntimeEnv<TId> = {
+  readonly ALERT_CHANNEL_IDS?: string;
   readonly HANDOFF_MESSAGE_TEMPLATE?: string;
   readonly MESSAGE_DEDUPE: MessageDedupeNamespace<TId>;
   readonly OWNER_USER_ID: string;
   readonly SLACK_BOT_TOKEN: string;
+  readonly SLACK_BOT_USER_ID?: string;
   readonly SLACK_SIGNING_SECRET: string;
   readonly TARGET_BOT_USER_ID: string;
 };

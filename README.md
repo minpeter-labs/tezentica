@@ -3,7 +3,9 @@
 Slack owner-mention handoff bot on Cloudflare Workers.
 
 When a Slack message mentions `OWNER_USER_ID`, Tezentica replies once in the same
-thread, tags `TARGET_BOT_USER_ID`, and includes the original message:
+thread and tags `TARGET_BOT_USER_ID`. When a message lands in an
+`ALERT_CHANNEL_IDS` channel, Tezentica asks the same target bot for severity
+analysis.
 
 ````text
 <@TARGET_BOT_USER_ID> 이 작업 처리해라.
@@ -31,7 +33,9 @@ TARGET_BOT_USER_ID=...
 Optional:
 
 ````dotenv
+ALERT_CHANNEL_IDS=C123,C456
 HANDOFF_MESSAGE_TEMPLATE="{target} 이 작업 처리해라.\n원본 메시지:\n```{message}```"
+SLACK_BOT_USER_ID=...
 ````
 
 Use `https://tezentica.vooy.workers.dev/slack/events` as the Slack Event

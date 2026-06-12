@@ -20,4 +20,32 @@ describe("parseWorkerEnv", () => {
       kind: "invalid",
     });
   });
+
+  it("parses optional alert channel ids from comma-separated env", () => {
+    // Given: a Worker environment with alert channels configured.
+    const env = {
+      ALERT_CHANNEL_IDS: "CALERT, CSECOND ,,",
+      OWNER_USER_ID: "UOWNER123",
+      SLACK_BOT_TOKEN: "xoxb-test",
+      SLACK_BOT_USER_ID: "UTEZENTICA",
+      SLACK_SIGNING_SECRET: "secret",
+      TARGET_BOT_USER_ID: "UTARGET456",
+    };
+
+    // When: the boundary parser receives the environment.
+    const result = parseWorkerEnv(env);
+
+    // Then: empty entries are removed and alert channel IDs are typed as a list.
+    expect(result).toEqual({
+      config: {
+        ALERT_CHANNEL_IDS: ["CALERT", "CSECOND"],
+        OWNER_USER_ID: "UOWNER123",
+        SLACK_BOT_TOKEN: "xoxb-test",
+        SLACK_BOT_USER_ID: "UTEZENTICA",
+        SLACK_SIGNING_SECRET: "secret",
+        TARGET_BOT_USER_ID: "UTARGET456",
+      },
+      kind: "valid",
+    });
+  });
 });

@@ -35,11 +35,15 @@ export async function processSlackHandoff<TId>(
   input: ProcessSlackHandoffInput<TId>,
 ): Promise<void> {
   const handoff = buildHandoff({
+    alertChannelIds: input.config.ALERT_CHANNEL_IDS,
     event: input.callback.event,
     ...(input.config.HANDOFF_MESSAGE_TEMPLATE === undefined
       ? {}
       : { handoffMessageTemplate: input.config.HANDOFF_MESSAGE_TEMPLATE }),
     ownerUserId: input.config.OWNER_USER_ID,
+    ...(input.config.SLACK_BOT_USER_ID === undefined
+      ? {}
+      : { selfUserId: input.config.SLACK_BOT_USER_ID }),
     targetBotUserId: input.config.TARGET_BOT_USER_ID,
   });
 
@@ -49,7 +53,7 @@ export async function processSlackHandoff<TId>(
 
   const claimed = await claimMessageOnce({
     dedupeNamespace: input.dedupeNamespace,
-    key: `${input.callback.team_id}:${handoff.channel}:${input.callback.event.ts}`,
+    key: `${input.callback.team_id}:${handoff.channel}:${input.callback.event.ts}:${handoff.ruleId}`,
   });
 
   if (!claimed) {

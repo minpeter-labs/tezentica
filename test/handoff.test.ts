@@ -18,6 +18,7 @@ describe("buildHandoff", () => {
 
     expect(result).toEqual({
       channel: "C123",
+      ruleId: "owner-mention",
       text: "<@UR5BOT> 이 작업 처리해라.\n원본 메시지:\n```please help <@UOWNER>```",
       threadTs: "1710000000.000100",
     });
@@ -106,5 +107,120 @@ describe("buildHandoff", () => {
     expect(result?.text).toBe(
       "<@UR5BOT> 이 작업 처리해라.\n원본 메시지:\n```<@UOWNER> use `\u200b``danger`\u200b`````",
     );
+  });
+
+  it("renders alert channel severity analysis handoffs for bot messages", () => {
+    const result = buildHandoff({
+      alertChannelIds: ["CALERT"],
+      event: {
+        bot_id: "BALERT",
+        channel: "CALERT",
+        subtype: "bot_message",
+        text: "[critical] API latency high",
+        ts: "1710000000.000100",
+        type: "message",
+      },
+      ownerUserId: "UOWNER",
+      targetBotUserId: "UR5BOT",
+    });
+
+    expect(result).toEqual({
+      channel: "CALERT",
+      ruleId: "alert-channel",
+      text: "<@UR5BOT> 심각도 분석해줘.\n원본 알람:\n```[critical] API latency high```",
+      threadTs: "1710000000.000100",
+    });
+  });
+
+  it("ignores alert channel thread replies", () => {
+    const result = buildHandoff({
+      alertChannelIds: ["CALERT"],
+      event: {
+        channel: "CALERT",
+        text: "follow-up inside the alert thread",
+        thread_ts: "1710000000.000100",
+        ts: "1710000001.000200",
+        type: "message",
+        user: "UASKER",
+      },
+      ownerUserId: "UOWNER",
+      targetBotUserId: "UR5BOT",
+    });
+
+    expect(result).toBeNull();
+  });
+
+  it("ignores Slack thread aggregate events in alert channels", () => {
+    const result = buildHandoff({
+      alertChannelIds: ["CALERT"],
+      event: {
+        channel: "CALERT",
+        subtype: "message_replied",
+        ts: "1710000000.000100",
+        type: "message",
+      },
+      ownerUserId: "UOWNER",
+      targetBotUserId: "UR5BOT",
+    });
+
+    expect(result).toBeNull();
+  });
+
+  it("ignores bot messages outside configured alert channels", () => {
+    const result = buildHandoff({
+      alertChannelIds: ["CALERT"],
+      event: {
+        bot_id: "BALERT",
+        channel: "CNONALERT",
+        subtype: "bot_message",
+        text: "[critical] API latency high",
+        ts: "1710000000.000100",
+        type: "message",
+      },
+      ownerUserId: "UOWNER",
+      targetBotUserId: "UR5BOT",
+    });
+
+    expect(result).toBeNull();
+  });
+
+  it("ignores alert channel messages from Tezentica itself", () => {
+    const result = buildHandoff({
+      alertChannelIds: ["CALERT"],
+      event: {
+        bot_id: "BTEZENTICA",
+        channel: "CALERT",
+        subtype: "bot_message",
+        text: "<@UR5BOT> 심각도 분석해줘.",
+        ts: "1710000000.000100",
+        type: "message",
+        user: "UTEZENTICA",
+      },
+      ownerUserId: "UOWNER",
+      selfBotId: "BTEZENTICA",
+      selfUserId: "UTEZENTICA",
+      targetBotUserId: "UR5BOT",
+    });
+
+    expect(result).toBeNull();
+  });
+
+  it("ignores alert channel messages from the target bot", () => {
+    const result = buildHandoff({
+      alertChannelIds: ["CALERT"],
+      event: {
+        bot_id: "BR5",
+        channel: "CALERT",
+        subtype: "bot_message",
+        text: "분석 결과입니다.",
+        ts: "1710000000.000100",
+        type: "message",
+        user: "UR5BOT",
+      },
+      ownerUserId: "UOWNER",
+      targetBotUserId: "UR5BOT",
+    });
+
+    expect(result).toBeNull();
   });
 });

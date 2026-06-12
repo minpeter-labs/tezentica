@@ -8,9 +8,21 @@ function requiredEnvString(key: string): z.ZodString {
 }
 
 const workerEnvSchema = z.object({
+  ALERT_CHANNEL_IDS: z
+    .string()
+    .optional()
+    .transform((value) =>
+      value === undefined
+        ? []
+        : value
+            .split(",")
+            .map((channelId) => channelId.trim())
+            .filter((channelId) => channelId.length > 0),
+    ),
   HANDOFF_MESSAGE_TEMPLATE: z.string().trim().min(1).optional(),
   OWNER_USER_ID: requiredEnvString("OWNER_USER_ID"),
   SLACK_BOT_TOKEN: requiredEnvString("SLACK_BOT_TOKEN"),
+  SLACK_BOT_USER_ID: z.string().trim().min(1).optional(),
   SLACK_SIGNING_SECRET: requiredEnvString("SLACK_SIGNING_SECRET"),
   TARGET_BOT_USER_ID: requiredEnvString("TARGET_BOT_USER_ID"),
 });
