@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "slack-r5-handoff-bot",
+  "name": "tezentica",
   "main": "src/index.ts",
   "compatibility_date": "2026-06-12",
   "dev": {

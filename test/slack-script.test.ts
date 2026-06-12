@@ -59,7 +59,7 @@ describe("runSlackSetup", () => {
 });
 
 function createEnvFile(contents = validEnvContents()): string {
-  const directory = mkdtempSync(join(tmpdir(), "slack-r5-env-"));
+  const directory = mkdtempSync(join(tmpdir(), "tezentica-env-"));
   const envFile = join(directory, ".dev.vars");
   writeFileSync(envFile, contents);
 

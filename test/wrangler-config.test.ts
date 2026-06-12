@@ -24,7 +24,7 @@ describe("wrangler config", () => {
   it("declares durable object dedupe binding", () => {
     const config = wranglerConfigSchema.parse(JSON.parse(readFileSync("wrangler.jsonc", "utf8")));
 
-    expect(config.name).toBe("slack-r5-handoff-bot");
+    expect(config.name).toBe("tezentica");
     expect(config.durable_objects.bindings).toContainEqual({
       class_name: "MessageDedupeObject",
       name: "MESSAGE_DEDUPE",
