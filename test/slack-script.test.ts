@@ -6,22 +6,16 @@ import { describe, expect, it } from "vitest";
 import { runSlackSetup } from "../scripts/slack";
 
 describe("runSlackSetup", () => {
-  it("prints local tunnel and deployed Slack Request URLs without URL env secrets", async () => {
+  it("prints the deployed Slack Request URL without env secrets", async () => {
     const envFile = createEnvFile();
     const output: string[] = [];
 
-    const tunnelCode = await runSlackSetup(
-      ["tunnel", "--env-file", envFile, "--public-url", "https://local.example"],
-      { stdout: (line) => output.push(line) },
-    );
     const webhookCode = await runSlackSetup(
       ["webhook", "--env-file", envFile, "--worker-url", "https://worker.example"],
       { stdout: (line) => output.push(line) },
     );
 
-    expect(tunnelCode).toBe(0);
     expect(webhookCode).toBe(0);
-    expect(output).toContain("Slack Request URL: https://local.example/slack/events");
     expect(output).toContain("Slack Request URL: https://worker.example/slack/events");
     expect(output.join("\n")).not.toContain("xoxb-secret-token");
     expect(output.join("\n")).not.toContain("signing-secret");
@@ -43,18 +37,17 @@ describe("runSlackSetup", () => {
     expect(output.join("\n")).not.toContain("WORKER_PUBLIC_URL");
   });
 
-  it("prints a clear manual tunnel fallback when cloudflared is unavailable", async () => {
+  it("rejects the old tunnel command because Slack has one active Request URL", async () => {
     const envFile = createEnvFile();
     const output: string[] = [];
 
     const code = await runSlackSetup(["tunnel", "--env-file", envFile], {
-      commandExists: () => false,
       stderr: (line) => output.push(line),
     });
 
     expect(code).toBe(1);
-    expect(output.join("\n")).toContain("cloudflared is not available");
-    expect(output.join("\n")).toContain("<public-tunnel-origin>/slack/events");
+    expect(output.join("\n")).toContain("usage: slack.ts webhook");
+    expect(output.join("\n")).toContain("Slack Event Subscriptions support one active Request URL");
   });
 });
 

@@ -5,9 +5,6 @@
   "type": "module",
   "scripts": {
     "check": "biome check . && tsc -p tsconfig.json --noEmit && vitest run",
-    "dev": "run-p dev:worker dev:tunnel",
-    "dev:tunnel": "tsx scripts/slack.ts tunnel",
-    "dev:worker": "wrangler dev",
     "ship": "run-s ship:secrets ship:worker ship:webhook",
     "ship:secrets": "wrangler secret bulk .dev.vars",
     "ship:webhook": "tsx scripts/slack.ts webhook",

@@ -40,7 +40,7 @@ describe("Slack handoff Worker flow", () => {
     expect(slackRequests).toHaveLength(1);
     expect(await slackRequests[0]?.json()).toEqual({
       channel: "C123",
-      text: "<@UR5BOT> 이 작업 처리해라.",
+      text: "<@UR5BOT> 이 작업 처리해라.\n원본 메시지:\n```please check <@UOWNER>```",
       thread_ts: "1710000000.000100",
     });
   });

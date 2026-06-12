@@ -18,7 +18,7 @@ describe("buildHandoff", () => {
 
     expect(result).toEqual({
       channel: "C123",
-      text: "<@UR5BOT> 이 작업 처리해라.",
+      text: "<@UR5BOT> 이 작업 처리해라.\n원본 메시지:\n```please help <@UOWNER>```",
       threadTs: "1710000000.000100",
     });
   });
@@ -82,11 +82,29 @@ describe("buildHandoff", () => {
         type: "message",
         user: "UASKER",
       },
-      handoffMessageTemplate: "{target} 처리 부탁.",
+      handoffMessageTemplate: "{target} 처리 부탁.\n원문: {message}",
       ownerUserId: "UOWNER",
       targetBotUserId: "UR5BOT",
     });
 
-    expect(result?.text).toBe("<@UR5BOT> 처리 부탁.");
+    expect(result?.text).toBe("<@UR5BOT> 처리 부탁.\n원문: <@UOWNER> custom");
+  });
+
+  it("keeps Slack code fences closed when the original message contains backticks", () => {
+    const result = buildHandoff({
+      event: {
+        channel: "C123",
+        text: "<@UOWNER> use ```danger```",
+        ts: "1710000000.000100",
+        type: "message",
+        user: "UASKER",
+      },
+      ownerUserId: "UOWNER",
+      targetBotUserId: "UR5BOT",
+    });
+
+    expect(result?.text).toBe(
+      "<@UR5BOT> 이 작업 처리해라.\n원본 메시지:\n```<@UOWNER> use `\u200b``danger`\u200b`````",
+    );
   });
 });

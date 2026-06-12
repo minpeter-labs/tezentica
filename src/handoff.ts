@@ -22,7 +22,7 @@ export type Handoff = {
   readonly threadTs: string;
 };
 
-const defaultHandoffMessageTemplate = "{target} 이 작업 처리해라.";
+const defaultHandoffMessageTemplate = "{target} 이 작업 처리해라.\n원본 메시지:\n```{message}```";
 
 export function buildHandoff(input: HandoffInput): Handoff | null {
   if (!isOrdinaryUserMessage(input.event)) {
@@ -39,6 +39,7 @@ export function buildHandoff(input: HandoffInput): Handoff | null {
   return {
     channel: input.event.channel,
     text: renderHandoffMessage({
+      message: text,
       targetBotUserId: input.targetBotUserId,
       template: input.handoffMessageTemplate ?? defaultHandoffMessageTemplate,
     }),
@@ -47,12 +48,19 @@ export function buildHandoff(input: HandoffInput): Handoff | null {
 }
 
 type RenderHandoffMessageInput = {
+  readonly message: string;
   readonly targetBotUserId: string;
   readonly template: string;
 };
 
 function renderHandoffMessage(input: RenderHandoffMessageInput): string {
-  return input.template.replaceAll("{target}", `<@${input.targetBotUserId}>`);
+  return input.template
+    .replaceAll("{target}", `<@${input.targetBotUserId}>`)
+    .replaceAll("{message}", escapeSlackCodeFence(input.message));
+}
+
+function escapeSlackCodeFence(text: string): string {
+  return text.replaceAll("```", "`\u200b``");
 }
 
 function isOrdinaryUserMessage(event: SlackMessageEvent): boolean {

@@ -1,4 +1,3 @@
-import { spawn, spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 
@@ -10,18 +9,14 @@ const requiredEnvSchema = z.object({
   SLACK_SIGNING_SECRET: requiredEnvString("SLACK_SIGNING_SECRET"),
   TARGET_BOT_USER_ID: requiredEnvString("TARGET_BOT_USER_ID"),
 });
-const localWorkerOrigin = "http://127.0.0.1:8792";
-
 export type SlackSetupIo = {
-  readonly commandExists?: (command: string) => boolean;
   readonly stderr?: (line: string) => void;
   readonly stdout?: (line: string) => void;
 };
 
 type ParsedArgs = {
-  readonly command: "tunnel" | "webhook";
+  readonly command: "webhook";
   readonly envFile: string;
-  readonly publicUrl: string | undefined;
   readonly workerUrl: string | undefined;
 };
 
@@ -34,9 +29,8 @@ export async function runSlackSetup(
   const parsedArgs = parseArgs(argv);
 
   if (!parsedArgs) {
-    error(
-      "usage: slack.ts tunnel|webhook [--env-file .dev.vars] [--public-url https://...] [--worker-url https://...]",
-    );
+    error("usage: slack.ts webhook [--env-file .dev.vars] --worker-url https://...");
+    error("Slack Event Subscriptions support one active Request URL; use the deployed Worker URL.");
 
     return 1;
   }
@@ -51,35 +45,13 @@ export async function runSlackSetup(
     return 1;
   }
 
-  if (parsedArgs.command === "webhook") {
-    if (!parsedArgs.workerUrl) {
-      error("webhook requires --worker-url https://<deployed-worker-origin>");
-
-      return 1;
-    }
-
-    printWebhookInstructions(output, parsedArgs.workerUrl);
-
-    return 0;
-  }
-
-  if (parsedArgs.publicUrl) {
-    printTunnelInstructions(output, parsedArgs.publicUrl);
-
-    return 0;
-  }
-
-  const commandExists = io.commandExists ?? defaultCommandExists;
-
-  if (!commandExists("cloudflared")) {
-    error("cloudflared is not available.");
-    error(`Run any HTTPS tunnel manually to ${localWorkerOrigin}.`);
-    error("Then set Slack's Request URL to <public-tunnel-origin>/slack/events.");
+  if (!parsedArgs.workerUrl) {
+    error("webhook requires --worker-url https://<deployed-worker-origin>");
 
     return 1;
   }
 
-  await runCloudflaredTunnel(output, error);
+  printWebhookInstructions(output, parsedArgs.workerUrl);
 
   return 0;
 }
@@ -94,14 +66,13 @@ function requiredEnvString(key: string): z.ZodString {
 function parseArgs(argv: readonly string[]): ParsedArgs | null {
   const [command, ...rest] = argv;
 
-  if (command !== "tunnel" && command !== "webhook") {
+  if (command !== "webhook") {
     return null;
   }
 
   return {
     command,
     envFile: readFlag(rest, "--env-file") ?? ".dev.vars",
-    publicUrl: readFlag(rest, "--public-url"),
     workerUrl: readFlag(rest, "--worker-url"),
   };
 }
@@ -143,12 +114,6 @@ function validateRequiredEnv(env: Record<string, string>) {
   return requiredEnvSchema.safeParse(env);
 }
 
-function printTunnelInstructions(output: (line: string) => void, publicOrigin: string): void {
-  output(`Slack Request URL: ${joinOrigin(publicOrigin)}/slack/events`);
-  output("Slack events: message.channels, message.groups");
-  output("Slack bot scopes: chat:write, channels:history, groups:history");
-}
-
 function printWebhookInstructions(output: (line: string) => void, workerOrigin: string): void {
   output(`Slack Request URL: ${joinOrigin(workerOrigin)}/slack/events`);
   output("Configure Slack App Event Subscriptions with message.channels and message.groups.");
@@ -157,38 +122,6 @@ function printWebhookInstructions(output: (line: string) => void, workerOrigin: 
 
 function joinOrigin(origin: string): string {
   return origin.replace(/\/+$/, "");
-}
-
-function defaultCommandExists(command: string): boolean {
-  return spawnSync(command, ["--version"], { stdio: "ignore" }).status === 0;
-}
-
-async function runCloudflaredTunnel(
-  output: (line: string) => void,
-  error: (line: string) => void,
-): Promise<void> {
-  output(`Starting cloudflared tunnel to ${localWorkerOrigin}`);
-  const child = spawn("cloudflared", ["tunnel", "--url", localWorkerOrigin], {
-    stdio: ["ignore", "pipe", "pipe"],
-  });
-
-  await new Promise<void>((resolve, reject) => {
-    child.stdout.on("data", (chunk: Buffer) => {
-      const text = chunk.toString("utf8");
-      const match = text.match(/https:\/\/[^\s]+\.trycloudflare\.com/);
-
-      if (match?.[0]) {
-        printTunnelInstructions(output, match[0]);
-      }
-
-      output(text.trimEnd());
-    });
-    child.stderr.on("data", (chunk: Buffer) => {
-      error(chunk.toString("utf8").trimEnd());
-    });
-    child.on("error", reject);
-    child.on("close", () => resolve());
-  });
 }
 
 function isMain(metaUrl: string, argvEntry: string | undefined): boolean {
