@@ -95,6 +95,10 @@ function isAlertChannelMessage(input: HandoffInput): boolean {
 }
 
 function isAlertChannelRootMessage(event: SlackMessageEvent): boolean {
+  if (event.subtype === "thread_broadcast") {
+    return true;
+  }
+
   if (event.thread_ts !== undefined && event.thread_ts !== event.ts) {
     return false;
   }

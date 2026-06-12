@@ -132,6 +132,30 @@ describe("buildHandoff", () => {
     });
   });
 
+  it("renders alert channel handoffs for Slack thread broadcasts", () => {
+    const result = buildHandoff({
+      alertChannelIds: ["CALERT"],
+      event: {
+        bot_id: "BALERT",
+        channel: "CALERT",
+        subtype: "thread_broadcast",
+        text: "[critical] API latency high",
+        thread_ts: "1710000000.000100",
+        ts: "1710000001.000200",
+        type: "message",
+      },
+      ownerUserId: "UOWNER",
+      targetBotUserId: "UR5BOT",
+    });
+
+    expect(result).toEqual({
+      channel: "CALERT",
+      ruleId: "alert-channel",
+      text: "<@UR5BOT> 심각도 분석해줘.\n원본 알람:\n```[critical] API latency high```",
+      threadTs: "1710000000.000100",
+    });
+  });
+
   it("ignores alert channel thread replies", () => {
     const result = buildHandoff({
       alertChannelIds: ["CALERT"],
