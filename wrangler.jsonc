@@ -7,6 +7,20 @@
     "ip": "127.0.0.1",
     "port": 8792
   },
+  "durable_objects": {
+    "bindings": [
+      {
+        "class_name": "MessageDedupeObject",
+        "name": "MESSAGE_DEDUPE"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "new_sqlite_classes": ["MessageDedupeObject"],
+      "tag": "v1"
+    }
+  ],
   "observability": {
     "logs": {
       "enabled": false,
