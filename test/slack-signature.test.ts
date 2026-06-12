@@ -3,6 +3,49 @@ import { describe, expect, it } from "vitest";
 import { handleSlackEventsRequest } from "../src/slack/http";
 
 describe("handleSlackEventsRequest", () => {
+  it("rejects non-POST Slack events requests", async () => {
+    const request = new Request("https://worker.example/slack/events", {
+      method: "GET",
+    });
+
+    const response = await handleSlackEventsRequest(request, {
+      nowSeconds: () => 1710000000,
+      signingSecret: "secret",
+    });
+
+    expect(response.status).toBe(405);
+    expect(await response.text()).toBe("method not allowed");
+  });
+
+  it("rejects stale Slack request timestamps", async () => {
+    const body = JSON.stringify({
+      challenge: "challenge-token",
+      type: "url_verification",
+    });
+    const timestamp = "1709999000";
+    const request = new Request("https://worker.example/slack/events", {
+      body,
+      headers: {
+        "content-type": "application/json",
+        "x-slack-request-timestamp": timestamp,
+        "x-slack-signature": await signTestSlackBody({
+          body,
+          signingSecret: "secret",
+          timestamp,
+        }),
+      },
+      method: "POST",
+    });
+
+    const response = await handleSlackEventsRequest(request, {
+      nowSeconds: () => 1710000000,
+      signingSecret: "secret",
+    });
+
+    expect(response.status).toBe(401);
+    expect(await response.text()).toBe("invalid Slack signature");
+  });
+
   it("rejects invalid Slack signatures before parsing JSON", async () => {
     const malformedBody = "{";
     const request = new Request("https://worker.example/slack/events", {
