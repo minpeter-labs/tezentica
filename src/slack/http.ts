@@ -1,7 +1,10 @@
 import { z } from "zod";
 
+import { parseSlackEventCallbackEnvelope, type SlackEventCallbackEnvelope } from "./events";
+
 export type SlackRequestOptions = {
   readonly nowSeconds: () => number;
+  readonly onEventCallback?: (envelope: SlackEventCallbackEnvelope) => Promise<void>;
   readonly signingSecret: string;
 };
 
@@ -43,6 +46,12 @@ export async function handleSlackEventsRequest(
 
   if (urlVerification.success) {
     return new Response(urlVerification.data.challenge);
+  }
+
+  const eventCallback = parseSlackEventCallbackEnvelope(envelope);
+
+  if (eventCallback) {
+    await options.onEventCallback?.(eventCallback);
   }
 
   return new Response("ok");
