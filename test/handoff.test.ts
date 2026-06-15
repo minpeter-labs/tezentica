@@ -105,7 +105,7 @@ describe("buildHandoff", () => {
     });
 
     expect(result?.text).toBe(
-      "<@UR5BOT> 이 작업 처리해라.\n원본 메시지:\n```<@UOWNER> use `\u200b``danger`\u200b`````",
+      "<@UR5BOT> 이 작업 처리해라.\n원본 메시지:\n```<@UOWNER> use `\u200b``danger`\u200b`````"
     );
   });
 

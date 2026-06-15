@@ -5,10 +5,12 @@ import { postSlackThreadReply, SlackApiError } from "../src/slack/client";
 describe("postSlackThreadReply", () => {
   it("posts a thread reply with bearer token", async () => {
     const calls: Request[] = [];
-    const transport = async (request: Request): Promise<Response> => {
+    const transport = (request: Request): Promise<Response> => {
       calls.push(request);
 
-      return Response.json({ ok: true, ts: "1710000001.000200" });
+      return Promise.resolve(
+        Response.json({ ok: true, ts: "1710000001.000200" })
+      );
     };
 
     await postSlackThreadReply(
@@ -18,7 +20,7 @@ describe("postSlackThreadReply", () => {
         text: "<@UR5BOT> 이 작업 처리해라.",
         threadTs: "1710000000.000100",
       },
-      transport,
+      transport
     );
 
     const request = calls[0];
@@ -40,7 +42,7 @@ describe("postSlackThreadReply", () => {
         text: "<@UR5BOT> 이 작업 처리해라.",
         threadTs: "1710000000.000100",
       },
-      async () => Response.json({ error: "invalid_auth", ok: false }),
+      async () => Response.json({ error: "invalid_auth", ok: false })
     ).catch((caught: unknown) => caught);
 
     expect(error).toBeInstanceOf(SlackApiError);

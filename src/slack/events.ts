@@ -19,14 +19,14 @@ const slackEventCallbackEnvelopeSchema = z.object({
   type: z.literal("event_callback"),
 });
 
-export type SlackEventCallbackEnvelope = {
+export interface SlackEventCallbackEnvelope {
   readonly event: SlackMessageEvent;
   readonly team_id: string;
   readonly type: "event_callback";
-};
+}
 
 export function parseSlackEventCallbackEnvelope(
-  envelope: unknown,
+  envelope: unknown
 ): SlackEventCallbackEnvelope | null {
   const result = slackEventCallbackEnvelopeSchema.safeParse(envelope);
 
@@ -41,7 +41,9 @@ export function parseSlackEventCallbackEnvelope(
   };
 }
 
-function toSlackMessageEvent(event: z.infer<typeof slackMessageEventSchema>): SlackMessageEvent {
+function toSlackMessageEvent(
+  event: z.infer<typeof slackMessageEventSchema>
+): SlackMessageEvent {
   return {
     ...(event.bot_id === undefined ? {} : { bot_id: event.bot_id }),
     channel: event.channel,

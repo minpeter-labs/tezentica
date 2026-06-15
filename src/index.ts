@@ -1,11 +1,18 @@
 import { parseWorkerEnv } from "./config";
+import { MessageDedupeObject as MessageDedupeDurableObject } from "./dedupe-object";
 import type { SlackTransport } from "./slack/client";
-import { type MessageDedupeNamespace, processSlackHandoff } from "./slack/handoff-handler";
+import {
+  type MessageDedupeNamespace,
+  processSlackHandoff,
+} from "./slack/handoff-handler";
 import { handleSlackEventsRequest } from "./slack/http";
 
-export { MessageDedupeObject } from "./dedupe-object";
+// Re-export the Durable Object class so the Workers runtime can bind it from
+// the entry module. Routed through a local binding to keep the entry compatible
+// with both noBarrelFile (no `export ... from`) and noExportedImports.
+export const MessageDedupeObject = MessageDedupeDurableObject;
 
-type WorkerRuntimeEnv<TId> = {
+interface WorkerRuntimeEnv<TId> {
   readonly ALERT_CHANNEL_IDS?: string;
   readonly HANDOFF_MESSAGE_TEMPLATE?: string;
   readonly MESSAGE_DEDUPE: MessageDedupeNamespace<TId>;
@@ -14,23 +21,26 @@ type WorkerRuntimeEnv<TId> = {
   readonly SLACK_BOT_USER_ID?: string;
   readonly SLACK_SIGNING_SECRET: string;
   readonly TARGET_BOT_USER_ID: string;
-};
+}
 
-export type WorkerDependencies = {
+export interface WorkerDependencies {
   readonly nowSeconds?: () => number;
   readonly slackApiBaseUrl?: string;
   readonly slackTransport?: SlackTransport;
-};
+}
 
-export type SlackHandoffWorker<TId> = {
+export interface SlackHandoffWorker<TId> {
   fetch(request: Request, env: WorkerRuntimeEnv<TId>): Promise<Response>;
-};
+}
 
 export function createWorker<TId = DurableObjectId>(
-  dependencies: WorkerDependencies = {},
+  dependencies: WorkerDependencies = {}
 ): SlackHandoffWorker<TId> {
   return {
-    async fetch(request: Request, env: WorkerRuntimeEnv<TId>): Promise<Response> {
+    async fetch(
+      request: Request,
+      env: WorkerRuntimeEnv<TId>
+    ): Promise<Response> {
       const url = new URL(request.url);
 
       if (url.pathname === "/health") {
@@ -47,8 +57,9 @@ export function createWorker<TId = DurableObjectId>(
         return new Response("worker configuration invalid", { status: 500 });
       }
 
-      return handleSlackEventsRequest(request, {
-        nowSeconds: dependencies.nowSeconds ?? (() => Math.floor(Date.now() / 1000)),
+      return await handleSlackEventsRequest(request, {
+        nowSeconds:
+          dependencies.nowSeconds ?? (() => Math.floor(Date.now() / 1000)),
         onEventCallback: (callback) =>
           processSlackHandoff({
             callback,
@@ -67,7 +78,8 @@ export function createWorker<TId = DurableObjectId>(
   };
 }
 
-const worker = createWorker() satisfies ExportedHandler<WorkerRuntimeEnv<DurableObjectId>>;
+const worker = createWorker() satisfies ExportedHandler<
+  WorkerRuntimeEnv<DurableObjectId>
+>;
 
-// biome-ignore lint/style/noDefaultExport: Cloudflare module workers require the entrypoint as default export.
 export default worker;

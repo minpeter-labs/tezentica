@@ -10,7 +10,9 @@ const devScriptName = "dev";
 
 describe("package scripts", () => {
   it("keeps deploy scripts focused on the deployed Slack webhook", () => {
-    const packageJson = packageJsonSchema.parse(JSON.parse(readFileSync("package.json", "utf8")));
+    const packageJson = packageJsonSchema.parse(
+      JSON.parse(readFileSync("package.json", "utf8"))
+    );
 
     expect(packageJson.scripts).toMatchObject({
       check: "biome check . && tsc -p tsconfig.json --noEmit && vitest run",

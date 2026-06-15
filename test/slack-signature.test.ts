@@ -9,7 +9,7 @@ describe("handleSlackEventsRequest", () => {
     });
 
     const response = await handleSlackEventsRequest(request, {
-      nowSeconds: () => 1710000000,
+      nowSeconds: () => 1_710_000_000,
       signingSecret: "secret",
     });
 
@@ -38,7 +38,7 @@ describe("handleSlackEventsRequest", () => {
     });
 
     const response = await handleSlackEventsRequest(request, {
-      nowSeconds: () => 1710000000,
+      nowSeconds: () => 1_710_000_000,
       signingSecret: "secret",
     });
 
@@ -59,7 +59,7 @@ describe("handleSlackEventsRequest", () => {
     });
 
     const response = await handleSlackEventsRequest(request, {
-      nowSeconds: () => 1710000000,
+      nowSeconds: () => 1_710_000_000,
       signingSecret: "secret",
     });
 
@@ -89,7 +89,7 @@ describe("handleSlackEventsRequest", () => {
     });
 
     const response = await handleSlackEventsRequest(request, {
-      nowSeconds: () => 1710000000,
+      nowSeconds: () => 1_710_000_000,
       signingSecret: "secret",
     });
 
@@ -98,25 +98,29 @@ describe("handleSlackEventsRequest", () => {
   });
 });
 
-type SignTestSlackBodyInput = {
+interface SignTestSlackBodyInput {
   readonly body: string;
   readonly signingSecret: string;
   readonly timestamp: string;
-};
+}
 
-async function signTestSlackBody(input: SignTestSlackBodyInput): Promise<string> {
+async function signTestSlackBody(
+  input: SignTestSlackBodyInput
+): Promise<string> {
   const encoder = new TextEncoder();
   const key = await crypto.subtle.importKey(
     "raw",
     encoder.encode(input.signingSecret),
     { hash: "SHA-256", name: "HMAC" },
     false,
-    ["sign"],
+    ["sign"]
   );
   const base = `v0:${input.timestamp}:${input.body}`;
   const digest = await crypto.subtle.sign("HMAC", key, encoder.encode(base));
   const bytes = new Uint8Array(digest);
-  const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+  const hex = Array.from(bytes, (byte) =>
+    byte.toString(16).padStart(2, "0")
+  ).join("");
 
   return `v0=${hex}`;
 }

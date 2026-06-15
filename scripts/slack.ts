@@ -3,34 +3,41 @@ import { pathToFileURL } from "node:url";
 
 import { z } from "zod";
 
+const LINE_BREAK_PATTERN = /\r?\n/;
+const TRAILING_SLASHES_PATTERN = /\/+$/;
+
 const requiredEnvSchema = z.object({
   OWNER_USER_ID: requiredEnvString("OWNER_USER_ID"),
   SLACK_BOT_TOKEN: requiredEnvString("SLACK_BOT_TOKEN"),
   SLACK_SIGNING_SECRET: requiredEnvString("SLACK_SIGNING_SECRET"),
   TARGET_BOT_USER_ID: requiredEnvString("TARGET_BOT_USER_ID"),
 });
-export type SlackSetupIo = {
+export interface SlackSetupIo {
   readonly stderr?: (line: string) => void;
   readonly stdout?: (line: string) => void;
-};
+}
 
-type ParsedArgs = {
+interface ParsedArgs {
   readonly command: "webhook";
   readonly envFile: string;
   readonly workerUrl: string | undefined;
-};
+}
 
-export async function runSlackSetup(
+export function runSlackSetup(
   argv: readonly string[],
-  io: SlackSetupIo = {},
-): Promise<number> {
+  io: SlackSetupIo = {}
+): number {
   const output = io.stdout ?? console.log;
   const error = io.stderr ?? console.error;
   const parsedArgs = parseArgs(argv);
 
   if (!parsedArgs) {
-    error("usage: slack.ts webhook [--env-file .dev.vars] --worker-url https://...");
-    error("Slack Event Subscriptions support one active Request URL; use the deployed Worker URL.");
+    error(
+      "usage: slack.ts webhook [--env-file .dev.vars] --worker-url https://..."
+    );
+    error(
+      "Slack Event Subscriptions support one active Request URL; use the deployed Worker URL."
+    );
 
     return 1;
   }
@@ -81,7 +88,7 @@ function readFlag(argv: readonly string[], flag: string): string | undefined {
   const index = argv.indexOf(flag);
 
   if (index < 0) {
-    return undefined;
+    return;
   }
 
   return argv[index + 1];
@@ -91,7 +98,7 @@ function loadDotEnvFile(path: string): Record<string, string> {
   const env: Record<string, string> = {};
   const contents = readFileSync(path, "utf8");
 
-  for (const line of contents.split(/\r?\n/)) {
+  for (const line of contents.split(LINE_BREAK_PATTERN)) {
     const trimmed = line.trim();
 
     if (!trimmed || trimmed.startsWith("#")) {
@@ -114,14 +121,19 @@ function validateRequiredEnv(env: Record<string, string>) {
   return requiredEnvSchema.safeParse(env);
 }
 
-function printWebhookInstructions(output: (line: string) => void, workerOrigin: string): void {
+function printWebhookInstructions(
+  output: (line: string) => void,
+  workerOrigin: string
+): void {
   output(`Slack Request URL: ${joinOrigin(workerOrigin)}/slack/events`);
-  output("Configure Slack App Event Subscriptions with message.channels and message.groups.");
+  output(
+    "Configure Slack App Event Subscriptions with message.channels and message.groups."
+  );
   output("Invite the bot to every private channel that should be covered.");
 }
 
 function joinOrigin(origin: string): string {
-  return origin.replace(/\/+$/, "");
+  return origin.replace(TRAILING_SLASHES_PATTERN, "");
 }
 
 function isMain(metaUrl: string, argvEntry: string | undefined): boolean {
@@ -129,7 +141,5 @@ function isMain(metaUrl: string, argvEntry: string | undefined): boolean {
 }
 
 if (isMain(import.meta.url, process.argv[1])) {
-  runSlackSetup(process.argv.slice(2)).then((code) => {
-    process.exitCode = code;
-  });
+  process.exitCode = runSlackSetup(process.argv.slice(2));
 }
