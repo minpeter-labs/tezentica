@@ -6,6 +6,7 @@ describe("parseWorkerEnv", () => {
   it("rejects missing Slack signing secret", () => {
     // Given: a Worker environment without the Slack signing secret.
     const env = {
+      HOME_CHANNEL_ID: "CHOME",
       OWNER_USER_ID: "UOWNER123",
       SLACK_BOT_TOKEN: "xoxb-test",
       TARGET_BOT_USER_ID: "UTARGET456",
@@ -25,6 +26,7 @@ describe("parseWorkerEnv", () => {
     // Given: a Worker environment with alert channels configured.
     const env = {
       ALERT_CHANNEL_IDS: "CALERT, CSECOND ,,",
+      HOME_CHANNEL_ID: "CHOME",
       OWNER_USER_ID: "UOWNER123",
       SLACK_BOT_TOKEN: "xoxb-test",
       SLACK_BOT_USER_ID: "UTEZENTICA",
@@ -39,6 +41,7 @@ describe("parseWorkerEnv", () => {
     expect(result).toEqual({
       config: {
         ALERT_CHANNEL_IDS: ["CALERT", "CSECOND"],
+        HOME_CHANNEL_ID: "CHOME",
         OWNER_USER_ID: "UOWNER123",
         SLACK_BOT_TOKEN: "xoxb-test",
         SLACK_BOT_USER_ID: "UTEZENTICA",

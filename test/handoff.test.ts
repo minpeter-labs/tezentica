@@ -1,9 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { buildHandoff } from "../src/handoff";
+import {
+  buildHandoff,
+  composeHandoffMessage,
+  type Handoff,
+} from "../src/handoff";
 
 describe("buildHandoff", () => {
-  it("renders a handoff only when the owner user id is mentioned", () => {
+  it("routes an owner mention to the home channel with the origin preserved", () => {
     const result = buildHandoff({
       event: {
         channel: "C123",
@@ -12,15 +16,17 @@ describe("buildHandoff", () => {
         type: "message",
         user: "UASKER",
       },
+      homeChannelId: "CHOME",
       ownerUserId: "UOWNER",
       targetBotUserId: "UR5BOT",
     });
 
     expect(result).toEqual({
-      channel: "C123",
+      destinationChannel: "CHOME",
+      originChannel: "C123",
+      originThreadTs: "1710000000.000100",
       ruleId: "owner-mention",
-      text: "<@UR5BOT> 이 작업 처리해라.\n원본 메시지:\n```please help <@UOWNER>```",
-      threadTs: "1710000000.000100",
+      text: "<@UR5BOT> 이 작업 처리하고 원본 스레드에 오너 자격으로 답해줘.\n원본 메시지:\n```please help <@UOWNER>```",
     });
   });
 
@@ -33,6 +39,7 @@ describe("buildHandoff", () => {
         type: "message",
         user: "UASKER",
       },
+      homeChannelId: "CHOME",
       ownerUserId: "UOWNER",
       targetBotUserId: "UR5BOT",
     });
@@ -50,6 +57,43 @@ describe("buildHandoff", () => {
         ts: "1710000000.000100",
         type: "message",
       },
+      homeChannelId: "CHOME",
+      ownerUserId: "UOWNER",
+      targetBotUserId: "UR5BOT",
+    });
+
+    expect(result).toBeNull();
+  });
+
+  it("ignores events that originate in the home channel", () => {
+    const result = buildHandoff({
+      event: {
+        channel: "CHOME",
+        text: "please help <@UOWNER>",
+        ts: "1710000000.000100",
+        type: "message",
+        user: "UASKER",
+      },
+      homeChannelId: "CHOME",
+      ownerUserId: "UOWNER",
+      targetBotUserId: "UR5BOT",
+    });
+
+    expect(result).toBeNull();
+  });
+
+  it("ignores messages authored by the owner to break the handoff loop", () => {
+    // This is what the target agent posts "as the owner" into the original
+    // thread; honoring it would re-trigger the owner-mention rule forever.
+    const result = buildHandoff({
+      event: {
+        channel: "C123",
+        text: "<@UOWNER> 확인했습니다",
+        ts: "1710000000.000100",
+        type: "message",
+        user: "UOWNER",
+      },
+      homeChannelId: "CHOME",
       ownerUserId: "UOWNER",
       targetBotUserId: "UR5BOT",
     });
@@ -67,11 +111,12 @@ describe("buildHandoff", () => {
         type: "message",
         user: "UASKER",
       },
+      homeChannelId: "CHOME",
       ownerUserId: "UOWNER",
       targetBotUserId: "UR5BOT",
     });
 
-    expect(result?.threadTs).toBe("1700000000.000001");
+    expect(result?.originThreadTs).toBe("1700000000.000001");
   });
 
   it("renders a custom handoff template", () => {
@@ -84,6 +129,7 @@ describe("buildHandoff", () => {
         user: "UASKER",
       },
       handoffMessageTemplate: "{target} 처리 부탁.\n원문: {message}",
+      homeChannelId: "CHOME",
       ownerUserId: "UOWNER",
       targetBotUserId: "UR5BOT",
     });
@@ -100,12 +146,13 @@ describe("buildHandoff", () => {
         type: "message",
         user: "UASKER",
       },
+      homeChannelId: "CHOME",
       ownerUserId: "UOWNER",
       targetBotUserId: "UR5BOT",
     });
 
     expect(result?.text).toBe(
-      "<@UR5BOT> 이 작업 처리해라.\n원본 메시지:\n```<@UOWNER> use `\u200b``danger`\u200b`````"
+      "<@UR5BOT> 이 작업 처리하고 원본 스레드에 오너 자격으로 답해줘.\n원본 메시지:\n```<@UOWNER> use `​``danger`​`````"
     );
   });
 
@@ -120,15 +167,17 @@ describe("buildHandoff", () => {
         ts: "1710000000.000100",
         type: "message",
       },
+      homeChannelId: "CHOME",
       ownerUserId: "UOWNER",
       targetBotUserId: "UR5BOT",
     });
 
     expect(result).toEqual({
-      channel: "CALERT",
+      destinationChannel: "CHOME",
+      originChannel: "CALERT",
+      originThreadTs: "1710000000.000100",
       ruleId: "alert-channel",
-      text: "<@UR5BOT> 심각도 분석해줘.\n원본 알람:\n```[critical] API latency high```",
-      threadTs: "1710000000.000100",
+      text: "<@UR5BOT> 심각도 분석해서 원본 알람 스레드에 오너 자격으로 답해줘.\n원본 알람:\n```[critical] API latency high```",
     });
   });
 
@@ -144,15 +193,17 @@ describe("buildHandoff", () => {
         ts: "1710000001.000200",
         type: "message",
       },
+      homeChannelId: "CHOME",
       ownerUserId: "UOWNER",
       targetBotUserId: "UR5BOT",
     });
 
     expect(result).toEqual({
-      channel: "CALERT",
+      destinationChannel: "CHOME",
+      originChannel: "CALERT",
+      originThreadTs: "1710000000.000100",
       ruleId: "alert-channel",
-      text: "<@UR5BOT> 심각도 분석해줘.\n원본 알람:\n```[critical] API latency high```",
-      threadTs: "1710000000.000100",
+      text: "<@UR5BOT> 심각도 분석해서 원본 알람 스레드에 오너 자격으로 답해줘.\n원본 알람:\n```[critical] API latency high```",
     });
   });
 
@@ -167,6 +218,7 @@ describe("buildHandoff", () => {
         type: "message",
         user: "UASKER",
       },
+      homeChannelId: "CHOME",
       ownerUserId: "UOWNER",
       targetBotUserId: "UR5BOT",
     });
@@ -183,6 +235,7 @@ describe("buildHandoff", () => {
         ts: "1710000000.000100",
         type: "message",
       },
+      homeChannelId: "CHOME",
       ownerUserId: "UOWNER",
       targetBotUserId: "UR5BOT",
     });
@@ -201,6 +254,7 @@ describe("buildHandoff", () => {
         ts: "1710000000.000100",
         type: "message",
       },
+      homeChannelId: "CHOME",
       ownerUserId: "UOWNER",
       targetBotUserId: "UR5BOT",
     });
@@ -220,6 +274,7 @@ describe("buildHandoff", () => {
         type: "message",
         user: "UTEZENTICA",
       },
+      homeChannelId: "CHOME",
       ownerUserId: "UOWNER",
       selfBotId: "BTEZENTICA",
       selfUserId: "UTEZENTICA",
@@ -241,10 +296,37 @@ describe("buildHandoff", () => {
         type: "message",
         user: "UR5BOT",
       },
+      homeChannelId: "CHOME",
       ownerUserId: "UOWNER",
       targetBotUserId: "UR5BOT",
     });
 
     expect(result).toBeNull();
+  });
+});
+
+describe("composeHandoffMessage", () => {
+  it("appends a machine-readable handoff pointer with the permalink", () => {
+    const handoff: Handoff = {
+      destinationChannel: "CHOME",
+      originChannel: "C123",
+      originThreadTs: "1710000000.000100",
+      ruleId: "owner-mention",
+      text: "<@UR5BOT> 이 작업 처리하고 원본 스레드에 오너 자격으로 답해줘.\n원본 메시지:\n```help```",
+    };
+    const permalink =
+      "https://example.slack.com/archives/C123/p1710000000000100";
+
+    const pointer = JSON.stringify({
+      action: "handoff",
+      origin_channel: "C123",
+      origin_thread_ts: "1710000000.000100",
+      permalink,
+      rule: "owner-mention",
+    });
+
+    expect(composeHandoffMessage(handoff, permalink)).toBe(
+      `${handoff.text}\n\`\`\`json\n${pointer}\n\`\`\``
+    );
   });
 });
