@@ -6,23 +6,21 @@ import {
   MessageDedupeObject,
 } from "../src/dedupe-object";
 import { createWorker } from "../src/index";
+import type { SlackTransport } from "../src/slack/client";
 import type {
   MessageDedupeNamespace,
   MessageDedupeStub,
 } from "../src/slack/handoff-handler";
 
+const SLACK_PERMALINK =
+  "https://example.slack.com/archives/C123/p1710000000000100";
+
 describe("Slack handoff Worker flow", () => {
-  it("replies once in-thread for duplicate signed owner-mention events", async () => {
+  it("routes a duplicate owner-mention to the home channel exactly once", async () => {
     const slackRequests: Request[] = [];
     const worker = createWorker<string>({
       nowSeconds: () => 1_710_000_000,
-      slackTransport: (request) => {
-        slackRequests.push(request);
-
-        return Promise.resolve(
-          Response.json({ ok: true, ts: "1710000001.000200" })
-        );
-      },
+      slackTransport: createSlackTransport(slackRequests),
     });
     const env = createWorkerEnv();
     const body = JSON.stringify({
@@ -45,25 +43,32 @@ describe("Slack handoff Worker flow", () => {
 
     expect(first.status).toBe(200);
     expect(second.status).toBe(200);
-    expect(slackRequests).toHaveLength(1);
-    expect(await slackRequests[0]?.json()).toEqual({
-      channel: "C123",
-      text: "<@UR5BOT> 이 작업 처리해라.\n원본 메시지:\n```please check <@UOWNER>```",
-      thread_ts: "1710000000.000100",
-    });
+
+    const posts = postMessageRequests(slackRequests);
+    expect(posts).toHaveLength(1);
+
+    const posted = (await posts[0]?.json()) as {
+      channel: string;
+      text: string;
+      thread_ts?: string;
+    };
+    // Posted to the private home channel as a top-level message...
+    expect(posted.channel).toBe("CHOME");
+    expect(posted.thread_ts).toBeUndefined();
+    // ...tagging the env-configured agent, quoting the original message, and
+    // embedding the agent-slack command pointed at the ORIGIN thread.
+    expect(posted.text).toContain("<@UR5BOT>");
+    expect(posted.text).toContain("```please check <@UOWNER>```");
+    expect(posted.text).toContain("agent-slack message send C123");
+    expect(posted.text).toContain("--thread 1710000000.000100");
+    expect(posted.text).toContain(SLACK_PERMALINK);
   });
 
   it("ignores signed messages that do not mention the owner", async () => {
     const slackRequests: Request[] = [];
     const worker = createWorker<string>({
       nowSeconds: () => 1_710_000_000,
-      slackTransport: (request) => {
-        slackRequests.push(request);
-
-        return Promise.resolve(
-          Response.json({ ok: true, ts: "1710000001.000200" })
-        );
-      },
+      slackTransport: createSlackTransport(slackRequests),
     });
     const body = JSON.stringify({
       event: {
@@ -86,17 +91,11 @@ describe("Slack handoff Worker flow", () => {
     expect(slackRequests).toHaveLength(0);
   });
 
-  it("replies once in-thread for duplicate signed alert channel bot events", async () => {
+  it("routes a duplicate alert channel bot event to the home channel once", async () => {
     const slackRequests: Request[] = [];
     const worker = createWorker<string>({
       nowSeconds: () => 1_710_000_000,
-      slackTransport: (request) => {
-        slackRequests.push(request);
-
-        return Promise.resolve(
-          Response.json({ ok: true, ts: "1710000001.000200" })
-        );
-      },
+      slackTransport: createSlackTransport(slackRequests),
     });
     const env = createWorkerEnv({
       ALERT_CHANNEL_IDS: "CALERT",
@@ -123,25 +122,26 @@ describe("Slack handoff Worker flow", () => {
 
     expect(first.status).toBe(200);
     expect(second.status).toBe(200);
-    expect(slackRequests).toHaveLength(1);
-    expect(await slackRequests[0]?.json()).toEqual({
-      channel: "CALERT",
-      text: "<@UR5BOT> 심각도 분석해줘.\n원본 알람:\n```[critical] API latency high```",
-      thread_ts: "1710000000.000300",
-    });
+
+    const posts = postMessageRequests(slackRequests);
+    expect(posts).toHaveLength(1);
+
+    const posted = (await posts[0]?.json()) as {
+      channel: string;
+      text: string;
+    };
+    expect(posted.channel).toBe("CHOME");
+    expect(posted.text).toContain("<@UR5BOT>");
+    expect(posted.text).toContain("```[critical] API latency high```");
+    expect(posted.text).toContain("agent-slack message send CALERT");
+    expect(posted.text).toContain("--thread 1710000000.000300");
   });
 
   it("ignores non-alert bot messages and Tezentica or target bot alert messages", async () => {
     const slackRequests: Request[] = [];
     const worker = createWorker<string>({
       nowSeconds: () => 1_710_000_000,
-      slackTransport: (request) => {
-        slackRequests.push(request);
-
-        return Promise.resolve(
-          Response.json({ ok: true, ts: "1710000001.000200" })
-        );
-      },
+      slackTransport: createSlackTransport(slackRequests),
     });
     const env = createWorkerEnv({
       ALERT_CHANNEL_IDS: "CALERT",
@@ -204,13 +204,243 @@ describe("Slack handoff Worker flow", () => {
     expect(targetBot.status).toBe(200);
     expect(slackRequests).toHaveLength(0);
   });
+
+  it("releases the dedupe claim so a failed post can be retried", async () => {
+    const slackRequests: Request[] = [];
+    let postAttempts = 0;
+    const worker = createWorker<string>({
+      nowSeconds: () => 1_710_000_000,
+      slackTransport: (request) => {
+        slackRequests.push(request);
+
+        if (new URL(request.url).pathname.endsWith("/chat.getPermalink")) {
+          return Promise.resolve(
+            Response.json({ ok: true, permalink: SLACK_PERMALINK })
+          );
+        }
+
+        postAttempts += 1;
+
+        if (postAttempts === 1) {
+          return Promise.resolve(
+            Response.json({ error: "ratelimited", ok: false })
+          );
+        }
+
+        return Promise.resolve(
+          Response.json({ ok: true, ts: "1710000001.000200" })
+        );
+      },
+    });
+    const env = createWorkerEnv();
+    const body = JSON.stringify({
+      event: {
+        channel: "C123",
+        text: "please check <@UOWNER>",
+        ts: "1710000000.000100",
+        type: "message",
+        user: "UASKER",
+      },
+      team_id: "T123",
+      type: "event_callback",
+    });
+
+    const failed = await worker.fetch(
+      await createSignedSlackRequest(body),
+      env
+    );
+    const retried = await worker.fetch(
+      await createSignedSlackRequest(body),
+      env
+    );
+
+    // First delivery surfaces the Slack failure (so Slack retries); the retry
+    // succeeds because the claim was released rather than silently consumed.
+    expect(failed.status).toBe(500);
+    expect(retried.status).toBe(200);
+
+    const posts = postMessageRequests(slackRequests);
+    expect(posts).toHaveLength(2);
+
+    // The recovered (second) post must deliver the complete, correct handoff,
+    // not a truncated or mis-routed one.
+    const posted = (await posts[1]?.json()) as {
+      channel: string;
+      text: string;
+    };
+    expect(posted.channel).toBe("CHOME");
+    expect(posted.text).toContain("```please check <@UOWNER>```");
+    expect(posted.text).toContain("agent-slack message send C123");
+    expect(posted.text).toContain("--thread 1710000000.000100");
+  });
+
+  it("ignores an owner-authored message end-to-end so the reply-as-owner loop is broken", async () => {
+    // The target bot replies "as the owner" into the public thread; that reply
+    // arrives back as an owner-authored event and must never re-trigger.
+    const slackRequests: Request[] = [];
+    const worker = createWorker<string>({
+      nowSeconds: () => 1_710_000_000,
+      slackTransport: createSlackTransport(slackRequests),
+    });
+    const body = JSON.stringify({
+      event: {
+        channel: "C123",
+        text: "<@UOWNER> 처리했습니다",
+        ts: "1710000000.000100",
+        type: "message",
+        user: "UOWNER",
+      },
+      team_id: "T123",
+      type: "event_callback",
+    });
+
+    const response = await worker.fetch(
+      await createSignedSlackRequest(body),
+      createWorkerEnv()
+    );
+
+    expect(response.status).toBe(200);
+    expect(slackRequests).toHaveLength(0);
+  });
+
+  it("ignores events originating in the home channel end-to-end", async () => {
+    const slackRequests: Request[] = [];
+    const worker = createWorker<string>({
+      nowSeconds: () => 1_710_000_000,
+      slackTransport: createSlackTransport(slackRequests),
+    });
+    const body = JSON.stringify({
+      event: {
+        channel: "CHOME",
+        text: "please check <@UOWNER>",
+        ts: "1710000000.000100",
+        type: "message",
+        user: "UASKER",
+      },
+      team_id: "T123",
+      type: "event_callback",
+    });
+
+    const response = await worker.fetch(
+      await createSignedSlackRequest(body),
+      createWorkerEnv()
+    );
+
+    expect(response.status).toBe(200);
+    expect(slackRequests).toHaveLength(0);
+  });
+
+  it("still posts the handoff with an empty permalink when getPermalink fails", async () => {
+    const slackRequests: Request[] = [];
+    const worker = createWorker<string>({
+      nowSeconds: () => 1_710_000_000,
+      slackTransport: (request) => {
+        slackRequests.push(request);
+
+        if (new URL(request.url).pathname.endsWith("/chat.getPermalink")) {
+          return Promise.resolve(
+            Response.json({ error: "message_not_found", ok: false })
+          );
+        }
+
+        return Promise.resolve(
+          Response.json({ ok: true, ts: "1710000001.000200" })
+        );
+      },
+    });
+    const body = JSON.stringify({
+      event: {
+        channel: "C123",
+        text: "please check <@UOWNER>",
+        ts: "1710000000.000100",
+        type: "message",
+        user: "UASKER",
+      },
+      team_id: "T123",
+      type: "event_callback",
+    });
+
+    const response = await worker.fetch(
+      await createSignedSlackRequest(body),
+      createWorkerEnv()
+    );
+
+    expect(response.status).toBe(200);
+
+    const posts = postMessageRequests(slackRequests);
+    expect(posts).toHaveLength(1);
+
+    // Permalink fetch failed, so the link is empty — but the handoff still
+    // posts with the working agent-slack command (origin channel + thread).
+    const posted = (await posts[0]?.json()) as {
+      channel: string;
+      text: string;
+    };
+    expect(posted.channel).toBe("CHOME");
+    expect(posted.text).toContain("agent-slack message send C123");
+    expect(posted.text).toContain("--thread 1710000000.000100");
+    expect(posted.text).toContain("원본 링크: ");
+  });
+
+  it("resolves the permalink against the origin channel, not the home channel", async () => {
+    const slackRequests: Request[] = [];
+    const worker = createWorker<string>({
+      nowSeconds: () => 1_710_000_000,
+      slackTransport: createSlackTransport(slackRequests),
+    });
+    const body = JSON.stringify({
+      event: {
+        channel: "C123",
+        text: "please check <@UOWNER>",
+        ts: "1710000000.000100",
+        type: "message",
+        user: "UASKER",
+      },
+      team_id: "T123",
+      type: "event_callback",
+    });
+
+    await worker.fetch(await createSignedSlackRequest(body), createWorkerEnv());
+
+    const permalinkRequest = slackRequests.find((request) =>
+      new URL(request.url).pathname.endsWith("/chat.getPermalink")
+    );
+    const permalinkUrl = new URL(permalinkRequest?.url ?? "");
+    expect(permalinkUrl.searchParams.get("channel")).toBe("C123");
+    expect(permalinkUrl.searchParams.get("message_ts")).toBe(
+      "1710000000.000100"
+    );
+  });
 });
+
+function createSlackTransport(captured: Request[]): SlackTransport {
+  return (request) => {
+    captured.push(request);
+
+    if (new URL(request.url).pathname.endsWith("/chat.getPermalink")) {
+      return Promise.resolve(
+        Response.json({ ok: true, permalink: SLACK_PERMALINK })
+      );
+    }
+
+    return Promise.resolve(
+      Response.json({ ok: true, ts: "1710000001.000200" })
+    );
+  };
+}
+
+function postMessageRequests(requests: readonly Request[]): Request[] {
+  return requests.filter((request) =>
+    new URL(request.url).pathname.endsWith("/chat.postMessage")
+  );
+}
 
 function createWorkerEnv(
   overrides: Partial<TestWorkerEnv> = {}
 ): TestWorkerEnv {
   return {
     ALERT_CHANNEL_IDS: "",
+    HOME_CHANNEL_ID: "CHOME",
     MESSAGE_DEDUPE: new FakeDedupeNamespace(),
     OWNER_USER_ID: "UOWNER",
     SLACK_BOT_TOKEN: "xoxb-test",
@@ -223,6 +453,7 @@ function createWorkerEnv(
 
 interface TestWorkerEnv {
   readonly ALERT_CHANNEL_IDS: string;
+  readonly HOME_CHANNEL_ID: string;
   readonly MESSAGE_DEDUPE: MessageDedupeNamespace<string>;
   readonly OWNER_USER_ID: string;
   readonly SLACK_BOT_TOKEN: string;
@@ -314,6 +545,12 @@ class InMemoryDedupeTransaction implements DedupeTransaction {
 
   constructor(seen: Set<string>) {
     this.seen = seen;
+  }
+
+  delete(key: string): Promise<void> {
+    this.seen.delete(key);
+
+    return Promise.resolve();
   }
 
   get(key: string): Promise<boolean | undefined> {

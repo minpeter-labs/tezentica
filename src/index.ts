@@ -15,6 +15,7 @@ export const MessageDedupeObject = MessageDedupeDurableObject;
 interface WorkerRuntimeEnv<TId> {
   readonly ALERT_CHANNEL_IDS?: string;
   readonly HANDOFF_MESSAGE_TEMPLATE?: string;
+  readonly HOME_CHANNEL_ID: string;
   readonly MESSAGE_DEDUPE: MessageDedupeNamespace<TId>;
   readonly OWNER_USER_ID: string;
   readonly SLACK_BOT_TOKEN: string;
@@ -57,23 +58,32 @@ export function createWorker<TId = DurableObjectId>(
         return new Response("worker configuration invalid", { status: 500 });
       }
 
-      return await handleSlackEventsRequest(request, {
-        nowSeconds:
-          dependencies.nowSeconds ?? (() => Math.floor(Date.now() / 1000)),
-        onEventCallback: (callback) =>
-          processSlackHandoff({
-            callback,
-            config: configResult.config,
-            dedupeNamespace: env.MESSAGE_DEDUPE,
-            ...(dependencies.slackApiBaseUrl === undefined
-              ? {}
-              : { slackApiBaseUrl: dependencies.slackApiBaseUrl }),
-            ...(dependencies.slackTransport === undefined
-              ? {}
-              : { slackTransport: dependencies.slackTransport }),
-          }),
-        signingSecret: configResult.config.SLACK_SIGNING_SECRET,
-      });
+      try {
+        return await handleSlackEventsRequest(request, {
+          nowSeconds:
+            dependencies.nowSeconds ?? (() => Math.floor(Date.now() / 1000)),
+          onEventCallback: (callback) =>
+            processSlackHandoff({
+              callback,
+              config: configResult.config,
+              dedupeNamespace: env.MESSAGE_DEDUPE,
+              ...(dependencies.slackApiBaseUrl === undefined
+                ? {}
+                : { slackApiBaseUrl: dependencies.slackApiBaseUrl }),
+              ...(dependencies.slackTransport === undefined
+                ? {}
+                : { slackTransport: dependencies.slackTransport }),
+            }),
+          signingSecret: configResult.config.SLACK_SIGNING_SECRET,
+        });
+      } catch (error) {
+        // Surface a 5xx so Slack retries. The dedupe claim is released on
+        // failure (see processSlackHandoff), so the retry can re-deliver
+        // instead of the handoff being silently dropped.
+        console.error("slack handoff processing failed", error);
+
+        return new Response("handoff processing failed", { status: 500 });
+      }
     },
   };
 }

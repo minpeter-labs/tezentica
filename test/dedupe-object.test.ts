@@ -65,11 +65,33 @@ describe("MessageDedupeObject", () => {
 
     expect(response.status).toBe(400);
   });
+
+  it("releases a claim so the key can be claimed again", async () => {
+    const object = new MessageDedupeObject({
+      storage: new InMemoryDedupeStorage(),
+    });
+    const key = "T123:C123:1710000000.000100";
+
+    const claimed = await object.fetch(createClaimRequest(key));
+    const released = await object.fetch(createReleaseRequest(key));
+    const reclaimed = await object.fetch(createClaimRequest(key));
+
+    expect(await claimed.json()).toEqual({ claimed: true });
+    expect(await released.json()).toEqual({ released: true });
+    expect(await reclaimed.json()).toEqual({ claimed: true });
+  });
 });
 
 function createClaimRequest(key: string): Request {
   return new Request("https://dedupe.example/claim", {
     body: JSON.stringify({ key }),
+    method: "POST",
+  });
+}
+
+function createReleaseRequest(key: string): Request {
+  return new Request("https://dedupe.example/release", {
+    body: JSON.stringify({ action: "release", key }),
     method: "POST",
   });
 }
@@ -98,6 +120,12 @@ class InMemoryDedupeTransaction {
 
   constructor(seen: Set<string>) {
     this.seen = seen;
+  }
+
+  delete(key: string): Promise<void> {
+    this.seen.delete(key);
+
+    return Promise.resolve();
   }
 
   get(key: string): Promise<boolean | undefined> {

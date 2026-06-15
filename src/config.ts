@@ -20,6 +20,7 @@ const workerEnvSchema = z.object({
             .filter((channelId) => channelId.length > 0)
     ),
   HANDOFF_MESSAGE_TEMPLATE: z.string().trim().min(1).optional(),
+  HOME_CHANNEL_ID: requiredEnvString("HOME_CHANNEL_ID"),
   OWNER_USER_ID: requiredEnvString("OWNER_USER_ID"),
   SLACK_BOT_TOKEN: requiredEnvString("SLACK_BOT_TOKEN"),
   SLACK_BOT_USER_ID: z.string().trim().min(1).optional(),

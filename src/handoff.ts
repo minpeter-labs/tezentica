@@ -13,6 +13,7 @@ export interface HandoffInput {
   readonly alertChannelIds?: readonly string[];
   readonly event: SlackMessageEvent;
   readonly handoffMessageTemplate?: string;
+  readonly homeChannelId: string;
   readonly ownerUserId: string;
   readonly selfBotId?: string;
   readonly selfUserId?: string;
@@ -20,61 +21,83 @@ export interface HandoffInput {
 }
 
 export interface Handoff {
-  readonly channel: string;
+  readonly destinationChannel: string;
+  readonly message: string;
+  readonly originChannel: string;
+  readonly originThreadTs: string;
   readonly ruleId: string;
-  readonly text: string;
-  readonly threadTs: string;
+  readonly targetBotUserId: string;
+  readonly template: string;
 }
 
 const alertChannelRuleId = "alert-channel";
 const alertChannelTemplate =
-  "{target} 심각도 분석해줘.\n원본 알람:\n```{message}```";
+  '{target} 아래 알람의 심각도를 분석한 뒤, agent-slack CLI로 원본 알람 스레드에 내 계정으로 답글을 남겨줘.\n원본 알람:\n```{message}```\n읽기: agent-slack message replies {origin_channel} {origin_thread_ts}\n답글: agent-slack message send {origin_channel} "(답변)" --thread {origin_thread_ts}\n원본 링크: {permalink}';
 const defaultHandoffMessageTemplate =
-  "{target} 이 작업 처리해라.\n원본 메시지:\n```{message}```";
+  '{target} 아래 요청을 처리한 뒤, agent-slack CLI로 원본 스레드에 내 계정으로 답글을 남겨줘.\n원본 메시지:\n```{message}```\n읽기: agent-slack message replies {origin_channel} {origin_thread_ts}\n답글: agent-slack message send {origin_channel} "(답변)" --thread {origin_thread_ts}\n원본 링크: {permalink}';
 const ownerMentionRuleId = "owner-mention";
 
 export function buildHandoff(input: HandoffInput): Handoff | null {
+  // Loop guards (must run first): never act on traffic from the private home
+  // channel, and never act on messages authored by the owner — the latter is
+  // exactly what the target agent posts "as the owner" into the original
+  // thread, so honoring it would re-trigger the handoff endlessly.
+  if (input.event.channel === input.homeChannelId) {
+    return null;
+  }
+
+  if (
+    input.event.user !== undefined &&
+    input.event.user === input.ownerUserId
+  ) {
+    return null;
+  }
+
   const text = input.event.text ?? "";
 
   if (isAlertChannelMessage(input)) {
     return {
-      channel: input.event.channel,
+      destinationChannel: input.homeChannelId,
+      message: text,
+      originChannel: input.event.channel,
+      originThreadTs: input.event.thread_ts ?? input.event.ts,
       ruleId: alertChannelRuleId,
-      text: renderHandoffMessage({
-        message: text,
-        targetBotUserId: input.targetBotUserId,
-        template: alertChannelTemplate,
-      }),
-      threadTs: input.event.thread_ts ?? input.event.ts,
+      targetBotUserId: input.targetBotUserId,
+      template: alertChannelTemplate,
     };
   }
 
   if (isOwnerMentionMessage(input)) {
     return {
-      channel: input.event.channel,
+      destinationChannel: input.homeChannelId,
+      message: text,
+      originChannel: input.event.channel,
+      originThreadTs: input.event.thread_ts ?? input.event.ts,
       ruleId: ownerMentionRuleId,
-      text: renderHandoffMessage({
-        message: text,
-        targetBotUserId: input.targetBotUserId,
-        template: input.handoffMessageTemplate ?? defaultHandoffMessageTemplate,
-      }),
-      threadTs: input.event.thread_ts ?? input.event.ts,
+      targetBotUserId: input.targetBotUserId,
+      template: input.handoffMessageTemplate ?? defaultHandoffMessageTemplate,
     };
   }
 
   return null;
 }
 
-interface RenderHandoffMessageInput {
-  readonly message: string;
-  readonly targetBotUserId: string;
-  readonly template: string;
-}
-
-function renderHandoffMessage(input: RenderHandoffMessageInput): string {
-  return input.template
-    .replaceAll("{target}", `<@${input.targetBotUserId}>`)
-    .replaceAll("{message}", escapeSlackCodeFence(input.message));
+// Renders the home-channel ping. Placeholders {target}, {origin_channel},
+// {origin_thread_ts} and {permalink} let the template embed a ready-to-run
+// agent-slack command; {message} is substituted LAST so the original text can
+// never be re-interpreted as another placeholder. The target agent runs
+// agent-slack, which posts via the owner's own Slack session, so the reply
+// lands in the public thread as the owner.
+export function renderHandoffMessage(
+  handoff: Handoff,
+  permalink: string
+): string {
+  return handoff.template
+    .replaceAll("{target}", `<@${handoff.targetBotUserId}>`)
+    .replaceAll("{origin_channel}", handoff.originChannel)
+    .replaceAll("{origin_thread_ts}", handoff.originThreadTs)
+    .replaceAll("{permalink}", permalink)
+    .replaceAll("{message}", escapeSlackCodeFence(handoff.message));
 }
 
 function escapeSlackCodeFence(text: string): string {
