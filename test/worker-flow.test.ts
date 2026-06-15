@@ -47,16 +47,21 @@ describe("Slack handoff Worker flow", () => {
     const posts = postMessageRequests(slackRequests);
     expect(posts).toHaveLength(1);
 
-    const prose =
-      "<@UR5BOT> 이 작업 처리하고 원본 스레드에 오너 자격으로 답해줘.\n원본 메시지:\n```please check <@UOWNER>```";
-    expect(await posts[0]?.json()).toEqual({
-      channel: "CHOME",
-      text: `${prose}\n\`\`\`json\n${pointer({
-        originChannel: "C123",
-        originThreadTs: "1710000000.000100",
-        rule: "owner-mention",
-      })}\n\`\`\``,
-    });
+    const posted = (await posts[0]?.json()) as {
+      channel: string;
+      text: string;
+      thread_ts?: string;
+    };
+    // Posted to the private home channel as a top-level message...
+    expect(posted.channel).toBe("CHOME");
+    expect(posted.thread_ts).toBeUndefined();
+    // ...tagging the env-configured agent, quoting the original message, and
+    // embedding the agent-slack command pointed at the ORIGIN thread.
+    expect(posted.text).toContain("<@UR5BOT>");
+    expect(posted.text).toContain("```please check <@UOWNER>```");
+    expect(posted.text).toContain("agent-slack message send C123");
+    expect(posted.text).toContain("--thread 1710000000.000100");
+    expect(posted.text).toContain(SLACK_PERMALINK);
   });
 
   it("ignores signed messages that do not mention the owner", async () => {
@@ -121,16 +126,15 @@ describe("Slack handoff Worker flow", () => {
     const posts = postMessageRequests(slackRequests);
     expect(posts).toHaveLength(1);
 
-    const prose =
-      "<@UR5BOT> 심각도 분석해서 원본 알람 스레드에 오너 자격으로 답해줘.\n원본 알람:\n```[critical] API latency high```";
-    expect(await posts[0]?.json()).toEqual({
-      channel: "CHOME",
-      text: `${prose}\n\`\`\`json\n${pointer({
-        originChannel: "CALERT",
-        originThreadTs: "1710000000.000300",
-        rule: "alert-channel",
-      })}\n\`\`\``,
-    });
+    const posted = (await posts[0]?.json()) as {
+      channel: string;
+      text: string;
+    };
+    expect(posted.channel).toBe("CHOME");
+    expect(posted.text).toContain("<@UR5BOT>");
+    expect(posted.text).toContain("```[critical] API latency high```");
+    expect(posted.text).toContain("agent-slack message send CALERT");
+    expect(posted.text).toContain("--thread 1710000000.000300");
   });
 
   it("ignores non-alert bot messages and Tezentica or target bot alert messages", async () => {
@@ -260,16 +264,14 @@ describe("Slack handoff Worker flow", () => {
 
     // The recovered (second) post must deliver the complete, correct handoff,
     // not a truncated or mis-routed one.
-    const prose =
-      "<@UR5BOT> 이 작업 처리하고 원본 스레드에 오너 자격으로 답해줘.\n원본 메시지:\n```please check <@UOWNER>```";
-    expect(await posts[1]?.json()).toEqual({
-      channel: "CHOME",
-      text: `${prose}\n\`\`\`json\n${pointer({
-        originChannel: "C123",
-        originThreadTs: "1710000000.000100",
-        rule: "owner-mention",
-      })}\n\`\`\``,
-    });
+    const posted = (await posts[1]?.json()) as {
+      channel: string;
+      text: string;
+    };
+    expect(posted.channel).toBe("CHOME");
+    expect(posted.text).toContain("```please check <@UOWNER>```");
+    expect(posted.text).toContain("agent-slack message send C123");
+    expect(posted.text).toContain("--thread 1710000000.000100");
   });
 
   it("ignores an owner-authored message end-to-end so the reply-as-owner loop is broken", async () => {
@@ -368,18 +370,16 @@ describe("Slack handoff Worker flow", () => {
     const posts = postMessageRequests(slackRequests);
     expect(posts).toHaveLength(1);
 
-    const prose =
-      "<@UR5BOT> 이 작업 처리하고 원본 스레드에 오너 자격으로 답해줘.\n원본 메시지:\n```please check <@UOWNER>```";
-    expect(await posts[0]?.json()).toEqual({
-      channel: "CHOME",
-      text: `${prose}\n\`\`\`json\n${JSON.stringify({
-        action: "handoff",
-        origin_channel: "C123",
-        origin_thread_ts: "1710000000.000100",
-        permalink: "",
-        rule: "owner-mention",
-      })}\n\`\`\``,
-    });
+    // Permalink fetch failed, so the link is empty — but the handoff still
+    // posts with the working agent-slack command (origin channel + thread).
+    const posted = (await posts[0]?.json()) as {
+      channel: string;
+      text: string;
+    };
+    expect(posted.channel).toBe("CHOME");
+    expect(posted.text).toContain("agent-slack message send C123");
+    expect(posted.text).toContain("--thread 1710000000.000100");
+    expect(posted.text).toContain("원본 링크: ");
   });
 
   it("resolves the permalink against the origin channel, not the home channel", async () => {
@@ -433,20 +433,6 @@ function postMessageRequests(requests: readonly Request[]): Request[] {
   return requests.filter((request) =>
     new URL(request.url).pathname.endsWith("/chat.postMessage")
   );
-}
-
-function pointer(input: {
-  originChannel: string;
-  originThreadTs: string;
-  rule: string;
-}): string {
-  return JSON.stringify({
-    action: "handoff",
-    origin_channel: input.originChannel,
-    origin_thread_ts: input.originThreadTs,
-    permalink: SLACK_PERMALINK,
-    rule: input.rule,
-  });
 }
 
 function createWorkerEnv(

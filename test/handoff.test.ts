@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildHandoff,
-  composeHandoffMessage,
   type Handoff,
+  renderHandoffMessage,
 } from "../src/handoff";
 
 describe("buildHandoff", () => {
@@ -21,12 +21,13 @@ describe("buildHandoff", () => {
       targetBotUserId: "UR5BOT",
     });
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       destinationChannel: "CHOME",
+      message: "please help <@UOWNER>",
       originChannel: "C123",
       originThreadTs: "1710000000.000100",
       ruleId: "owner-mention",
-      text: "<@UR5BOT> 이 작업 처리하고 원본 스레드에 오너 자격으로 답해줘.\n원본 메시지:\n```please help <@UOWNER>```",
+      targetBotUserId: "UR5BOT",
     });
   });
 
@@ -119,43 +120,6 @@ describe("buildHandoff", () => {
     expect(result?.originThreadTs).toBe("1700000000.000001");
   });
 
-  it("renders a custom handoff template", () => {
-    const result = buildHandoff({
-      event: {
-        channel: "C123",
-        text: "<@UOWNER> custom",
-        ts: "1710000000.000100",
-        type: "message",
-        user: "UASKER",
-      },
-      handoffMessageTemplate: "{target} 처리 부탁.\n원문: {message}",
-      homeChannelId: "CHOME",
-      ownerUserId: "UOWNER",
-      targetBotUserId: "UR5BOT",
-    });
-
-    expect(result?.text).toBe("<@UR5BOT> 처리 부탁.\n원문: <@UOWNER> custom");
-  });
-
-  it("keeps Slack code fences closed when the original message contains backticks", () => {
-    const result = buildHandoff({
-      event: {
-        channel: "C123",
-        text: "<@UOWNER> use ```danger```",
-        ts: "1710000000.000100",
-        type: "message",
-        user: "UASKER",
-      },
-      homeChannelId: "CHOME",
-      ownerUserId: "UOWNER",
-      targetBotUserId: "UR5BOT",
-    });
-
-    expect(result?.text).toBe(
-      "<@UR5BOT> 이 작업 처리하고 원본 스레드에 오너 자격으로 답해줘.\n원본 메시지:\n```<@UOWNER> use `​``danger`​`````"
-    );
-  });
-
   it("renders alert channel severity analysis handoffs for bot messages", () => {
     const result = buildHandoff({
       alertChannelIds: ["CALERT"],
@@ -172,12 +136,12 @@ describe("buildHandoff", () => {
       targetBotUserId: "UR5BOT",
     });
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       destinationChannel: "CHOME",
+      message: "[critical] API latency high",
       originChannel: "CALERT",
       originThreadTs: "1710000000.000100",
       ruleId: "alert-channel",
-      text: "<@UR5BOT> 심각도 분석해서 원본 알람 스레드에 오너 자격으로 답해줘.\n원본 알람:\n```[critical] API latency high```",
     });
   });
 
@@ -198,13 +162,8 @@ describe("buildHandoff", () => {
       targetBotUserId: "UR5BOT",
     });
 
-    expect(result).toEqual({
-      destinationChannel: "CHOME",
-      originChannel: "CALERT",
-      originThreadTs: "1710000000.000100",
-      ruleId: "alert-channel",
-      text: "<@UR5BOT> 심각도 분석해서 원본 알람 스레드에 오너 자격으로 답해줘.\n원본 알람:\n```[critical] API latency high```",
-    });
+    expect(result?.originThreadTs).toBe("1710000000.000100");
+    expect(result?.ruleId).toBe("alert-channel");
   });
 
   it("ignores alert channel thread replies", () => {
@@ -305,28 +264,66 @@ describe("buildHandoff", () => {
   });
 });
 
-describe("composeHandoffMessage", () => {
-  it("appends a machine-readable handoff pointer with the permalink", () => {
-    const handoff: Handoff = {
-      destinationChannel: "CHOME",
-      originChannel: "C123",
-      originThreadTs: "1710000000.000100",
-      ruleId: "owner-mention",
-      text: "<@UR5BOT> 이 작업 처리하고 원본 스레드에 오너 자격으로 답해줘.\n원본 메시지:\n```help```",
-    };
-    const permalink =
-      "https://example.slack.com/archives/C123/p1710000000000100";
+describe("renderHandoffMessage", () => {
+  const baseHandoff: Handoff = {
+    destinationChannel: "CHOME",
+    message: "hello <@U1>",
+    originChannel: "C123",
+    originThreadTs: "1710000000.000100",
+    ruleId: "owner-mention",
+    targetBotUserId: "UR5BOT",
+    template:
+      "{target}|{origin_channel}|{origin_thread_ts}|{permalink}|{message}",
+  };
 
-    const pointer = JSON.stringify({
-      action: "handoff",
-      origin_channel: "C123",
-      origin_thread_ts: "1710000000.000100",
-      permalink,
-      rule: "owner-mention",
-    });
-
-    expect(composeHandoffMessage(handoff, permalink)).toBe(
-      `${handoff.text}\n\`\`\`json\n${pointer}\n\`\`\``
+  it("substitutes every placeholder, message last", () => {
+    expect(renderHandoffMessage(baseHandoff, "https://slack.example/p1")).toBe(
+      "<@UR5BOT>|C123|1710000000.000100|https://slack.example/p1|hello <@U1>"
     );
+  });
+
+  it("never re-interprets the original message as another placeholder", () => {
+    const handoff: Handoff = {
+      ...baseHandoff,
+      message: "{origin_channel}",
+      template: "{origin_channel}:{message}",
+    };
+
+    expect(renderHandoffMessage(handoff, "")).toBe("C123:{origin_channel}");
+  });
+
+  it("keeps Slack code fences closed when the message contains backticks", () => {
+    const handoff: Handoff = {
+      ...baseHandoff,
+      message: "use ```danger```",
+      template: "```{message}```",
+    };
+
+    expect(renderHandoffMessage(handoff, "")).toBe("```use `​``danger`​`````");
+  });
+
+  it("embeds a ready-to-run agent-slack command for the default owner template", () => {
+    const handoff = buildHandoff({
+      event: {
+        channel: "C123",
+        text: "please help <@UOWNER>",
+        ts: "1710000000.000100",
+        type: "message",
+        user: "UASKER",
+      },
+      homeChannelId: "CHOME",
+      ownerUserId: "UOWNER",
+      targetBotUserId: "UR5BOT",
+    });
+    const rendered = renderHandoffMessage(
+      handoff as Handoff,
+      "https://slack.example/p1"
+    );
+
+    expect(rendered).toContain("<@UR5BOT>");
+    expect(rendered).toContain("```please help <@UOWNER>```");
+    expect(rendered).toContain("agent-slack message send C123");
+    expect(rendered).toContain("--thread 1710000000.000100");
+    expect(rendered).toContain("https://slack.example/p1");
   });
 });

@@ -1,5 +1,5 @@
 import type { WorkerConfig } from "../config";
-import { buildHandoff, composeHandoffMessage } from "../handoff";
+import { buildHandoff, renderHandoffMessage } from "../handoff";
 import {
   getSlackPermalink,
   postSlackMessage,
@@ -82,7 +82,7 @@ export async function processSlackHandoff<TId>(
           : { apiBaseUrl: input.slackApiBaseUrl }),
         botToken: input.config.SLACK_BOT_TOKEN,
         channel: handoff.destinationChannel,
-        text: composeHandoffMessage(handoff, permalink),
+        text: renderHandoffMessage(handoff, permalink),
       },
       input.slackTransport
     );
