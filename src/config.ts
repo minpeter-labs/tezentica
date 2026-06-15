@@ -17,7 +17,7 @@ const workerEnvSchema = z.object({
         : value
             .split(",")
             .map((channelId) => channelId.trim())
-            .filter((channelId) => channelId.length > 0),
+            .filter((channelId) => channelId.length > 0)
     ),
   HANDOFF_MESSAGE_TEMPLATE: z.string().trim().min(1).optional(),
   OWNER_USER_ID: requiredEnvString("OWNER_USER_ID"),

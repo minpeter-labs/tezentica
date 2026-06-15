@@ -1,12 +1,17 @@
 import { z } from "zod";
 
-import { parseSlackEventCallbackEnvelope, type SlackEventCallbackEnvelope } from "./events";
+import {
+  parseSlackEventCallbackEnvelope,
+  type SlackEventCallbackEnvelope,
+} from "./events";
 
-export type SlackRequestOptions = {
+export interface SlackRequestOptions {
   readonly nowSeconds: () => number;
-  readonly onEventCallback?: (envelope: SlackEventCallbackEnvelope) => Promise<void>;
+  readonly onEventCallback?: (
+    envelope: SlackEventCallbackEnvelope
+  ) => Promise<void>;
   readonly signingSecret: string;
-};
+}
 
 const slackSignatureVersion = "v0";
 const maxTimestampSkewSeconds = 60 * 5;
@@ -17,7 +22,7 @@ const urlVerificationEnvelopeSchema = z.object({
 
 export async function handleSlackEventsRequest(
   request: Request,
-  options: SlackRequestOptions,
+  options: SlackRequestOptions
 ): Promise<Response> {
   if (request.method !== "POST") {
     return new Response("method not allowed", { status: 405 });
@@ -26,7 +31,10 @@ export async function handleSlackEventsRequest(
   const timestamp = request.headers.get("x-slack-request-timestamp");
   const signature = request.headers.get("x-slack-signature");
 
-  if (!timestamp || !signature || timestampIsStale(timestamp, options.nowSeconds())) {
+  if (
+    !(timestamp && signature) ||
+    timestampIsStale(timestamp, options.nowSeconds())
+  ) {
     return new Response("invalid Slack signature", { status: 401 });
   }
 
@@ -57,11 +65,11 @@ export async function handleSlackEventsRequest(
   return new Response("ok");
 }
 
-type SignSlackBodyInput = {
+interface SignSlackBodyInput {
   readonly body: string;
   readonly signingSecret: string;
   readonly timestamp: string;
-};
+}
 
 async function signSlackBody(input: SignSlackBodyInput): Promise<string> {
   const encoder = new TextEncoder();
@@ -70,7 +78,7 @@ async function signSlackBody(input: SignSlackBodyInput): Promise<string> {
     encoder.encode(input.signingSecret),
     { hash: "SHA-256", name: "HMAC" },
     false,
-    ["sign"],
+    ["sign"]
   );
   const base = `${slackSignatureVersion}:${input.timestamp}:${input.body}`;
   const digest = await crypto.subtle.sign("HMAC", key, encoder.encode(base));
@@ -81,11 +89,16 @@ async function signSlackBody(input: SignSlackBodyInput): Promise<string> {
 function timestampIsStale(timestamp: string, nowSeconds: number): boolean {
   const parsed = Number.parseInt(timestamp, 10);
 
-  return !Number.isFinite(parsed) || Math.abs(nowSeconds - parsed) > maxTimestampSkewSeconds;
+  return (
+    !Number.isFinite(parsed) ||
+    Math.abs(nowSeconds - parsed) > maxTimestampSkewSeconds
+  );
 }
 
 function toHex(bytes: Uint8Array): string {
-  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join(
+    ""
+  );
 }
 
 function constantTimeEqual(left: string, right: string): boolean {
@@ -97,7 +110,7 @@ function constantTimeEqual(left: string, right: string): boolean {
   for (let index = 0; index < maxLength; index += 1) {
     const leftByte = leftBytes[index] ?? 0;
     const rightByte = rightBytes[index] ?? 0;
-    diff |= leftByte ^ rightByte;
+    diff += leftByte === rightByte ? 0 : 1;
   }
 
   return diff === 0;

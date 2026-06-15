@@ -2,13 +2,13 @@ import { z } from "zod";
 
 export type SlackTransport = (request: Request) => Promise<Response>;
 
-export type PostSlackThreadReplyInput = {
+export interface PostSlackThreadReplyInput {
   readonly apiBaseUrl?: string;
   readonly botToken: string;
   readonly channel: string;
   readonly text: string;
   readonly threadTs: string;
-};
+}
 
 const chatPostMessageResponseSchema = z.object({
   error: z.string().optional(),
@@ -18,22 +18,25 @@ const chatPostMessageResponseSchema = z.object({
 const defaultSlackApiBaseUrl = "https://slack.com/api";
 
 export class SlackApiError extends Error {
-  constructor(
-    message: string,
-    readonly status: number | null,
-  ) {
+  readonly status: number | null;
+
+  constructor(message: string, status: number | null) {
     super(message);
+    this.status = status;
     this.name = "SlackApiError";
   }
 }
 
 export async function postSlackThreadReply(
   input: PostSlackThreadReplyInput,
-  transport: SlackTransport = fetch,
+  transport: SlackTransport = fetch
 ): Promise<void> {
   const response = await transport(
     new Request(
-      new URL("chat.postMessage", withTrailingSlash(input.apiBaseUrl ?? defaultSlackApiBaseUrl)),
+      new URL(
+        "chat.postMessage",
+        withTrailingSlash(input.apiBaseUrl ?? defaultSlackApiBaseUrl)
+      ),
       {
         body: JSON.stringify({
           channel: input.channel,
@@ -45,15 +48,18 @@ export async function postSlackThreadReply(
           "content-type": "application/json",
         },
         method: "POST",
-      },
-    ),
+      }
+    )
   );
 
   const payload: unknown = await response.json();
   const parsed = chatPostMessageResponseSchema.parse(payload);
 
-  if (!response.ok || !parsed.ok) {
-    throw new SlackApiError(parsed.error ?? "chat.postMessage failed", response.status);
+  if (!(response.ok && parsed.ok)) {
+    throw new SlackApiError(
+      parsed.error ?? "chat.postMessage failed",
+      response.status
+    );
   }
 }
 

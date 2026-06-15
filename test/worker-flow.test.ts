@@ -6,17 +6,22 @@ import {
   MessageDedupeObject,
 } from "../src/dedupe-object";
 import { createWorker } from "../src/index";
-import type { MessageDedupeNamespace, MessageDedupeStub } from "../src/slack/handoff-handler";
+import type {
+  MessageDedupeNamespace,
+  MessageDedupeStub,
+} from "../src/slack/handoff-handler";
 
 describe("Slack handoff Worker flow", () => {
   it("replies once in-thread for duplicate signed owner-mention events", async () => {
     const slackRequests: Request[] = [];
     const worker = createWorker<string>({
-      nowSeconds: () => 1710000000,
-      slackTransport: async (request) => {
+      nowSeconds: () => 1_710_000_000,
+      slackTransport: (request) => {
         slackRequests.push(request);
 
-        return Response.json({ ok: true, ts: "1710000001.000200" });
+        return Promise.resolve(
+          Response.json({ ok: true, ts: "1710000001.000200" })
+        );
       },
     });
     const env = createWorkerEnv();
@@ -33,7 +38,10 @@ describe("Slack handoff Worker flow", () => {
     });
 
     const first = await worker.fetch(await createSignedSlackRequest(body), env);
-    const second = await worker.fetch(await createSignedSlackRequest(body), env);
+    const second = await worker.fetch(
+      await createSignedSlackRequest(body),
+      env
+    );
 
     expect(first.status).toBe(200);
     expect(second.status).toBe(200);
@@ -48,11 +56,13 @@ describe("Slack handoff Worker flow", () => {
   it("ignores signed messages that do not mention the owner", async () => {
     const slackRequests: Request[] = [];
     const worker = createWorker<string>({
-      nowSeconds: () => 1710000000,
-      slackTransport: async (request) => {
+      nowSeconds: () => 1_710_000_000,
+      slackTransport: (request) => {
         slackRequests.push(request);
 
-        return Response.json({ ok: true, ts: "1710000001.000200" });
+        return Promise.resolve(
+          Response.json({ ok: true, ts: "1710000001.000200" })
+        );
       },
     });
     const body = JSON.stringify({
@@ -67,7 +77,10 @@ describe("Slack handoff Worker flow", () => {
       type: "event_callback",
     });
 
-    const response = await worker.fetch(await createSignedSlackRequest(body), createWorkerEnv());
+    const response = await worker.fetch(
+      await createSignedSlackRequest(body),
+      createWorkerEnv()
+    );
 
     expect(response.status).toBe(200);
     expect(slackRequests).toHaveLength(0);
@@ -76,11 +89,13 @@ describe("Slack handoff Worker flow", () => {
   it("replies once in-thread for duplicate signed alert channel bot events", async () => {
     const slackRequests: Request[] = [];
     const worker = createWorker<string>({
-      nowSeconds: () => 1710000000,
-      slackTransport: async (request) => {
+      nowSeconds: () => 1_710_000_000,
+      slackTransport: (request) => {
         slackRequests.push(request);
 
-        return Response.json({ ok: true, ts: "1710000001.000200" });
+        return Promise.resolve(
+          Response.json({ ok: true, ts: "1710000001.000200" })
+        );
       },
     });
     const env = createWorkerEnv({
@@ -101,7 +116,10 @@ describe("Slack handoff Worker flow", () => {
     });
 
     const first = await worker.fetch(await createSignedSlackRequest(body), env);
-    const second = await worker.fetch(await createSignedSlackRequest(body), env);
+    const second = await worker.fetch(
+      await createSignedSlackRequest(body),
+      env
+    );
 
     expect(first.status).toBe(200);
     expect(second.status).toBe(200);
@@ -116,11 +134,13 @@ describe("Slack handoff Worker flow", () => {
   it("ignores non-alert bot messages and Tezentica or target bot alert messages", async () => {
     const slackRequests: Request[] = [];
     const worker = createWorker<string>({
-      nowSeconds: () => 1710000000,
-      slackTransport: async (request) => {
+      nowSeconds: () => 1_710_000_000,
+      slackTransport: (request) => {
         slackRequests.push(request);
 
-        return Response.json({ ok: true, ts: "1710000001.000200" });
+        return Promise.resolve(
+          Response.json({ ok: true, ts: "1710000001.000200" })
+        );
       },
     });
     const env = createWorkerEnv({
@@ -166,9 +186,18 @@ describe("Slack handoff Worker flow", () => {
       type: "event_callback",
     });
 
-    const nonAlert = await worker.fetch(await createSignedSlackRequest(nonAlertBody), env);
-    const self = await worker.fetch(await createSignedSlackRequest(selfBody), env);
-    const targetBot = await worker.fetch(await createSignedSlackRequest(targetBotBody), env);
+    const nonAlert = await worker.fetch(
+      await createSignedSlackRequest(nonAlertBody),
+      env
+    );
+    const self = await worker.fetch(
+      await createSignedSlackRequest(selfBody),
+      env
+    );
+    const targetBot = await worker.fetch(
+      await createSignedSlackRequest(targetBotBody),
+      env
+    );
 
     expect(nonAlert.status).toBe(200);
     expect(self.status).toBe(200);
@@ -177,7 +206,9 @@ describe("Slack handoff Worker flow", () => {
   });
 });
 
-function createWorkerEnv(overrides: Partial<TestWorkerEnv> = {}): TestWorkerEnv {
+function createWorkerEnv(
+  overrides: Partial<TestWorkerEnv> = {}
+): TestWorkerEnv {
   return {
     ALERT_CHANNEL_IDS: "",
     MESSAGE_DEDUPE: new FakeDedupeNamespace(),
@@ -190,7 +221,7 @@ function createWorkerEnv(overrides: Partial<TestWorkerEnv> = {}): TestWorkerEnv 
   };
 }
 
-type TestWorkerEnv = {
+interface TestWorkerEnv {
   readonly ALERT_CHANNEL_IDS: string;
   readonly MESSAGE_DEDUPE: MessageDedupeNamespace<string>;
   readonly OWNER_USER_ID: string;
@@ -198,7 +229,7 @@ type TestWorkerEnv = {
   readonly SLACK_BOT_USER_ID: string;
   readonly SLACK_SIGNING_SECRET: string;
   readonly TARGET_BOT_USER_ID: string;
-};
+}
 
 async function createSignedSlackRequest(body: string): Promise<Request> {
   const timestamp = "1710000000";
@@ -218,31 +249,37 @@ async function createSignedSlackRequest(body: string): Promise<Request> {
   });
 }
 
-type SignTestSlackBodyInput = {
+interface SignTestSlackBodyInput {
   readonly body: string;
   readonly signingSecret: string;
   readonly timestamp: string;
-};
+}
 
-async function signTestSlackBody(input: SignTestSlackBodyInput): Promise<string> {
+async function signTestSlackBody(
+  input: SignTestSlackBodyInput
+): Promise<string> {
   const encoder = new TextEncoder();
   const key = await crypto.subtle.importKey(
     "raw",
     encoder.encode(input.signingSecret),
     { hash: "SHA-256", name: "HMAC" },
     false,
-    ["sign"],
+    ["sign"]
   );
   const base = `v0:${input.timestamp}:${input.body}`;
   const digest = await crypto.subtle.sign("HMAC", key, encoder.encode(base));
   const bytes = new Uint8Array(digest);
-  const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+  const hex = Array.from(bytes, (byte) =>
+    byte.toString(16).padStart(2, "0")
+  ).join("");
 
   return `v0=${hex}`;
 }
 
 class FakeDedupeNamespace implements MessageDedupeNamespace<string> {
-  private readonly object = new MessageDedupeObject({ storage: new InMemoryDedupeStorage() });
+  private readonly object = new MessageDedupeObject({
+    storage: new InMemoryDedupeStorage(),
+  });
 
   get(): MessageDedupeStub {
     return {
@@ -260,10 +297,12 @@ class InMemoryDedupeStorage implements DedupeStorage {
   private queue: Promise<void> = Promise.resolve();
 
   transaction<T>(closure: (txn: DedupeTransaction) => Promise<T>): Promise<T> {
-    const run = this.queue.then(() => closure(new InMemoryDedupeTransaction(this.seen)));
+    const run = this.queue.then(() =>
+      closure(new InMemoryDedupeTransaction(this.seen))
+    );
     this.queue = run.then(
       () => undefined,
-      () => undefined,
+      () => undefined
     );
 
     return run;
@@ -271,15 +310,21 @@ class InMemoryDedupeStorage implements DedupeStorage {
 }
 
 class InMemoryDedupeTransaction implements DedupeTransaction {
-  constructor(private readonly seen: Set<string>) {}
+  private readonly seen: Set<string>;
 
-  async get(key: string): Promise<boolean | undefined> {
-    return this.seen.has(key) ? true : undefined;
+  constructor(seen: Set<string>) {
+    this.seen = seen;
   }
 
-  async put(key: string, value: boolean): Promise<void> {
+  get(key: string): Promise<boolean | undefined> {
+    return Promise.resolve(this.seen.has(key) ? true : undefined);
+  }
+
+  put(key: string, value: boolean): Promise<void> {
     if (value) {
       this.seen.add(key);
     }
+
+    return Promise.resolve();
   }
 }

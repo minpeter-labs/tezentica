@@ -1,4 +1,4 @@
-export type SlackMessageEvent = {
+export interface SlackMessageEvent {
   readonly bot_id?: string;
   readonly channel: string;
   readonly subtype?: string;
@@ -7,9 +7,9 @@ export type SlackMessageEvent = {
   readonly ts: string;
   readonly type: "message";
   readonly user?: string;
-};
+}
 
-export type HandoffInput = {
+export interface HandoffInput {
   readonly alertChannelIds?: readonly string[];
   readonly event: SlackMessageEvent;
   readonly handoffMessageTemplate?: string;
@@ -17,18 +17,20 @@ export type HandoffInput = {
   readonly selfBotId?: string;
   readonly selfUserId?: string;
   readonly targetBotUserId: string;
-};
+}
 
-export type Handoff = {
+export interface Handoff {
   readonly channel: string;
   readonly ruleId: string;
   readonly text: string;
   readonly threadTs: string;
-};
+}
 
 const alertChannelRuleId = "alert-channel";
-const alertChannelTemplate = "{target} 심각도 분석해줘.\n원본 알람:\n```{message}```";
-const defaultHandoffMessageTemplate = "{target} 이 작업 처리해라.\n원본 메시지:\n```{message}```";
+const alertChannelTemplate =
+  "{target} 심각도 분석해줘.\n원본 알람:\n```{message}```";
+const defaultHandoffMessageTemplate =
+  "{target} 이 작업 처리해라.\n원본 메시지:\n```{message}```";
 const ownerMentionRuleId = "owner-mention";
 
 export function buildHandoff(input: HandoffInput): Handoff | null {
@@ -63,11 +65,11 @@ export function buildHandoff(input: HandoffInput): Handoff | null {
   return null;
 }
 
-type RenderHandoffMessageInput = {
+interface RenderHandoffMessageInput {
   readonly message: string;
   readonly targetBotUserId: string;
   readonly template: string;
-};
+}
 
 function renderHandoffMessage(input: RenderHandoffMessageInput): string {
   return input.template
@@ -88,7 +90,9 @@ function isAlertChannelMessage(input: HandoffInput): boolean {
     !isSelfMessage({
       event: input.event,
       ...(input.selfBotId === undefined ? {} : { selfBotId: input.selfBotId }),
-      ...(input.selfUserId === undefined ? {} : { selfUserId: input.selfUserId }),
+      ...(input.selfUserId === undefined
+        ? {}
+        : { selfUserId: input.selfUserId }),
       targetBotUserId: input.targetBotUserId,
     })
   );
@@ -117,12 +121,12 @@ function isOwnerMentionMessage(input: HandoffInput): boolean {
   return text.includes(ownerMention);
 }
 
-type SelfMessageInput = {
+interface SelfMessageInput {
   readonly event: SlackMessageEvent;
   readonly selfBotId?: string;
   readonly selfUserId?: string;
   readonly targetBotUserId: string;
-};
+}
 
 function isSelfMessage(input: SelfMessageInput): boolean {
   return (

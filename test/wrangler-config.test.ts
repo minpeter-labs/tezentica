@@ -22,7 +22,9 @@ const wranglerConfigSchema = z.object({
 
 describe("wrangler config", () => {
   it("declares durable object dedupe binding", () => {
-    const config = wranglerConfigSchema.parse(JSON.parse(readFileSync("wrangler.jsonc", "utf8")));
+    const config = wranglerConfigSchema.parse(
+      JSON.parse(readFileSync("wrangler.jsonc", "utf8"))
+    );
 
     expect(config.name).toBe("tezentica");
     expect(config.durable_objects.bindings).toContainEqual({

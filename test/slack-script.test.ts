@@ -11,12 +11,20 @@ describe("runSlackSetup", () => {
     const output: string[] = [];
 
     const webhookCode = await runSlackSetup(
-      ["webhook", "--env-file", envFile, "--worker-url", "https://worker.example"],
-      { stdout: (line) => output.push(line) },
+      [
+        "webhook",
+        "--env-file",
+        envFile,
+        "--worker-url",
+        "https://worker.example",
+      ],
+      { stdout: (line) => output.push(line) }
     );
 
     expect(webhookCode).toBe(0);
-    expect(output).toContain("Slack Request URL: https://worker.example/slack/events");
+    expect(output).toContain(
+      "Slack Request URL: https://worker.example/slack/events"
+    );
     expect(output.join("\n")).not.toContain("xoxb-secret-token");
     expect(output.join("\n")).not.toContain("signing-secret");
   });
@@ -26,10 +34,16 @@ describe("runSlackSetup", () => {
     const output: string[] = [];
 
     const code = await runSlackSetup(
-      ["webhook", "--env-file", envFile, "--worker-url", "https://worker.example"],
+      [
+        "webhook",
+        "--env-file",
+        envFile,
+        "--worker-url",
+        "https://worker.example",
+      ],
       {
         stderr: (line) => output.push(line),
-      },
+      }
     );
 
     expect(code).toBe(1);
@@ -47,7 +61,9 @@ describe("runSlackSetup", () => {
 
     expect(code).toBe(1);
     expect(output.join("\n")).toContain("usage: slack.ts webhook");
-    expect(output.join("\n")).toContain("Slack Event Subscriptions support one active Request URL");
+    expect(output.join("\n")).toContain(
+      "Slack Event Subscriptions support one active Request URL"
+    );
   });
 });
 
