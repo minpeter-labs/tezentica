@@ -28,13 +28,15 @@ channel and thread:
 ```original message```
 읽기: agent-slack message replies C123 1710000000.000100
 답글: agent-slackbot message send C123 "(답변)" --thread 1710000000.000100
+답글 가이드: "웅기님이 바쁘셔서 대신 답변드려요."처럼 웅기님 대신 답변한다는 점을 먼저 밝혀줘.
 원본 링크: https://…
 ````
 
 The agent runs `agent-slack` for thread reads and `agent-slackbot` for thread
 replies. The runtime must be able to execute both CLIs, and `agent-slackbot`
 must be authenticated to the bot identity that should appear in the public
-thread.
+thread. Default handoffs also tell the replying bot to open by making clear that
+it is answering on Woonggi's behalf.
 
 The instruction is configurable via `HANDOFF_MESSAGE_TEMPLATE` with the
 placeholders `{target}`, `{message}`, `{origin_channel}`, `{origin_thread_ts}`,

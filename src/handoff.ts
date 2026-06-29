@@ -31,10 +31,10 @@ export interface Handoff {
 }
 
 const alertChannelRuleId = "alert-channel";
-const alertChannelTemplate =
-  '{target} 아래 알람의 심각도를 분석한 뒤, agent-slack으로 원본 알람 스레드를 읽고 agent-slackbot으로 답글을 남겨줘.\n원본 알람:\n```{message}```\n읽기: agent-slack message replies {origin_channel} {origin_thread_ts}\n답글: agent-slackbot message send {origin_channel} "(답변)" --thread {origin_thread_ts}\n원본 링크: {permalink}';
-const defaultHandoffMessageTemplate =
-  '{target} 아래 요청을 처리한 뒤, agent-slack으로 원본 스레드를 읽고 agent-slackbot으로 답글을 남겨줘.\n원본 메시지:\n```{message}```\n읽기: agent-slack message replies {origin_channel} {origin_thread_ts}\n답글: agent-slackbot message send {origin_channel} "(답변)" --thread {origin_thread_ts}\n원본 링크: {permalink}';
+const agentSlackbotReplyGuide =
+  '"웅기님이 바쁘셔서 대신 답변드려요."처럼 웅기님 대신 답변한다는 점을 먼저 밝혀줘.';
+const alertChannelTemplate = `{target} 아래 알람의 심각도를 분석한 뒤, agent-slack으로 원본 알람 스레드를 읽고 agent-slackbot으로 답글을 남겨줘.\n원본 알람:\n\`\`\`{message}\`\`\`\n읽기: agent-slack message replies {origin_channel} {origin_thread_ts}\n답글: agent-slackbot message send {origin_channel} "(답변)" --thread {origin_thread_ts}\n답글 가이드: ${agentSlackbotReplyGuide}\n원본 링크: {permalink}`;
+const defaultHandoffMessageTemplate = `{target} 아래 요청을 처리한 뒤, agent-slack으로 원본 스레드를 읽고 agent-slackbot으로 답글을 남겨줘.\n원본 메시지:\n\`\`\`{message}\`\`\`\n읽기: agent-slack message replies {origin_channel} {origin_thread_ts}\n답글: agent-slackbot message send {origin_channel} "(답변)" --thread {origin_thread_ts}\n답글 가이드: ${agentSlackbotReplyGuide}\n원본 링크: {permalink}`;
 const ownerMentionRuleId = "owner-mention";
 
 export function buildHandoff(input: HandoffInput): Handoff | null {

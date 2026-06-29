@@ -68,6 +68,9 @@ describe("renderHandoffMessage", () => {
     expect(rendered).toContain("```please help <@UOWNER>```");
     expect(rendered).toContain("agent-slack message replies C123");
     expect(rendered).toContain("agent-slackbot message send C123");
+    expect(rendered).toContain(
+      '"웅기님이 바쁘셔서 대신 답변드려요."처럼 웅기님 대신 답변한다는 점을 먼저 밝혀줘.'
+    );
     expect(rendered).toContain("--thread 1710000000.000100");
     expect(rendered).toContain("https://slack.example/p1");
   });

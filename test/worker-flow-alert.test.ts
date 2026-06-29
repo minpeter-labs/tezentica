@@ -51,6 +51,9 @@ describe("Slack handoff Worker alert flow", () => {
     expect(posted.text).toContain("```[critical] API latency high```");
     expect(posted.text).toContain("agent-slack message replies CALERT");
     expect(posted.text).toContain("agent-slackbot message send CALERT");
+    expect(posted.text).toContain(
+      '"웅기님이 바쁘셔서 대신 답변드려요."처럼 웅기님 대신 답변한다는 점을 먼저 밝혀줘.'
+    );
     expect(posted.text).toContain("--thread 1710000000.000300");
   });
 
