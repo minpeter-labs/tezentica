@@ -52,7 +52,7 @@ instead: read the thread with `agent-slack` and reply with
 Alert/watch channels override that review exception. For `ALERT_CHANNEL_IDS`,
 Tezentica always renders `agent-slackbot message send ... --thread ...` and
 uses pure bot mode: do not mention Woonggi being away or acting on his behalf,
-write as an operations/status bot, and end the public reply with `:robot:`.
+write as an operations/status bot, and end the public reply with `:robot_face:`.
 
 Tezentica currently injects three reply modes:
 

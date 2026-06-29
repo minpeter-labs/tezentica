@@ -41,7 +41,7 @@ const alertChannelRuleId = "alert-channel";
 const alertChannelTemplate =
   "{target} 아래 알람의 심각도를 분석한 뒤, agent-slack으로 원본 알람 스레드를 읽고 {reply_tool}으로 답글을 남겨줘.\n원본 알람:\n```{message}```\n읽기: agent-slack message replies {origin_channel} {origin_thread_ts}\n답글: {reply_command}\n원본 링크: {permalink}";
 const pureBotModeReplyGuideTemplate =
-  "답글 가이드:\n- 모드: 봇 모드 / 순수 봇 역할.\n- alert/watch 채널 예외: 리뷰 키워드가 있어도 agent-slackbot으로 답글을 남겨.\n- 먼저 agent-slack으로 원본 스레드 replies를 읽어.\n- 답글은 {reply_command} 명령으로 남겨.\n- 공개 답글에는 사람의 부재, 대행, 대신 답변 같은 사람 대리 문구를 쓰지 마.\n- R2-D2처럼 신뢰할 수 있는 astromech droid가 기술 상태를 보고하는 느낌으로, 짧고 기계적인 한국어 상태/조치 요약을 남겨.\n- 마지막 문장은 반드시 :robot: 이모지로 끝내.";
+  "답글 가이드:\n- 모드: 봇 모드 / 순수 봇 역할.\n- alert/watch 채널 예외: 리뷰 키워드가 있어도 agent-slackbot으로 답글을 남겨.\n- 먼저 agent-slack으로 원본 스레드 replies를 읽어.\n- 답글은 {reply_command} 명령으로 남겨.\n- 공개 답글에는 사람의 부재, 대행, 대신 답변 같은 사람 대리 문구를 쓰지 마.\n- R2-D2처럼 신뢰할 수 있는 astromech droid가 기술 상태를 보고하는 느낌으로, 짧고 기계적인 한국어 상태/조치 요약을 남겨.\n- 마지막 문장은 반드시 :robot_face: 이모지로 끝내.";
 const defaultHandoffMessageTemplate =
   "{target} 아래 요청을 처리한 뒤, agent-slack으로 원본 스레드를 읽고 {reply_tool}으로 답글을 남겨줘.\n원본 메시지:\n```{message}```\n읽기: agent-slack message replies {origin_channel} {origin_thread_ts}\n답글: {reply_command}\n원본 링크: {permalink}";
 const delegatedBotModeReplyGuideTemplate =

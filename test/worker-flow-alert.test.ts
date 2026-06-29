@@ -52,7 +52,9 @@ describe("Slack handoff Worker alert flow", () => {
     expect(posted.text).toContain("agent-slack message replies CALERT");
     expect(posted.text).toContain("agent-slackbot message send CALERT");
     expect(posted.text).toContain("모드: 봇 모드 / 순수 봇 역할");
-    expect(posted.text).toContain("마지막 문장은 반드시 :robot: 이모지로 끝내");
+    expect(posted.text).toContain(
+      "마지막 문장은 반드시 :robot_face: 이모지로 끝내"
+    );
     expect(posted.text).not.toContain("웅기님");
     expect(posted.text).toContain("alert/watch 채널 예외");
     expect(posted.text).toContain("--thread 1710000000.000300");
@@ -95,7 +97,9 @@ describe("Slack handoff Worker alert flow", () => {
     expect(posted.text).toContain("```[critical] 리뷰 queue stuck```");
     expect(posted.text).toContain("agent-slackbot message send CALERT");
     expect(posted.text).toContain("모드: 봇 모드 / 순수 봇 역할");
-    expect(posted.text).toContain("마지막 문장은 반드시 :robot: 이모지로 끝내");
+    expect(posted.text).toContain(
+      "마지막 문장은 반드시 :robot_face: 이모지로 끝내"
+    );
     expect(posted.text).not.toContain("웅기님");
     expect(posted.text).toContain("alert/watch 채널 예외");
     expect(posted.text).not.toContain("리뷰 요청 예외");
