@@ -16,7 +16,7 @@ describe("package scripts", () => {
 
     expect(packageJson.scripts).toMatchObject({
       check: "biome check . && tsc -p tsconfig.json --noEmit && vitest run",
-      ship: "run-s ship:secrets ship:worker ship:webhook",
+      ship: "run-s ship:secrets ship:worker && pnpm run ship:webhook --",
       "ship:secrets": "wrangler secret bulk .dev.vars",
       "ship:webhook": "tsx scripts/slack.ts webhook",
       "ship:worker": "wrangler deploy",
