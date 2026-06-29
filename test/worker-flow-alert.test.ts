@@ -51,14 +51,14 @@ describe("Slack handoff Worker alert flow", () => {
     expect(posted.text).toContain("```[critical] API latency high```");
     expect(posted.text).toContain("agent-slack message replies CALERT");
     expect(posted.text).toContain("agent-slackbot message send CALERT");
-    expect(posted.text).toContain(
-      '"웅기님이 부재중이라 봇이 대신 답변드립니다. :robot_face:"처럼 시작해'
-    );
+    expect(posted.text).toContain("모드: 봇 모드 / 순수 봇 역할");
+    expect(posted.text).toContain("마지막 문장은 반드시 :robot: 이모지로 끝내");
+    expect(posted.text).not.toContain("웅기님");
     expect(posted.text).toContain("alert/watch 채널 예외");
     expect(posted.text).toContain("--thread 1710000000.000300");
   });
 
-  it("keeps alert channel review messages on agent-slackbot with bot disclosure", async () => {
+  it("keeps alert channel review messages on agent-slackbot in pure bot mode", async () => {
     const slackRequests: Request[] = [];
     const worker = createWorker<string>({
       nowSeconds: () => 1_710_000_000,
@@ -94,9 +94,9 @@ describe("Slack handoff Worker alert flow", () => {
     const posted = await readPostedMessage(posts[0]);
     expect(posted.text).toContain("```[critical] 리뷰 queue stuck```");
     expect(posted.text).toContain("agent-slackbot message send CALERT");
-    expect(posted.text).toContain(
-      '"웅기님이 부재중이라 봇이 대신 답변드립니다. :robot_face:"처럼 시작해'
-    );
+    expect(posted.text).toContain("모드: 봇 모드 / 순수 봇 역할");
+    expect(posted.text).toContain("마지막 문장은 반드시 :robot: 이모지로 끝내");
+    expect(posted.text).not.toContain("웅기님");
     expect(posted.text).toContain("alert/watch 채널 예외");
     expect(posted.text).not.toContain("리뷰 요청 예외");
     expect(posted.text).not.toContain("agent-slack message send CALERT");

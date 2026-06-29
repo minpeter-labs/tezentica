@@ -40,15 +40,15 @@ const agentSlackbotReplyTool = "agent-slackbot";
 const alertChannelRuleId = "alert-channel";
 const alertChannelTemplate =
   "{target} 아래 알람의 심각도를 분석한 뒤, agent-slack으로 원본 알람 스레드를 읽고 {reply_tool}으로 답글을 남겨줘.\n원본 알람:\n```{message}```\n읽기: agent-slack message replies {origin_channel} {origin_thread_ts}\n답글: {reply_command}\n원본 링크: {permalink}";
-const alertChannelReplyGuideTemplate =
-  '답글 가이드:\n- alert/watch 채널 예외: 리뷰 키워드가 있어도 agent-slackbot으로 답글을 남겨.\n- 먼저 agent-slack으로 원본 스레드 replies를 읽어.\n- 답글은 {reply_command} 명령으로 남겨.\n- 공개 답글은 "웅기님이 부재중이라 봇이 대신 답변드립니다. :robot_face:"처럼 시작해.\n- 봇/운영 알림 톤으로 간결하게 정리하고, 사람 계정으로 대신 답하는 말투는 쓰지 마.';
+const pureBotModeReplyGuideTemplate =
+  "답글 가이드:\n- 모드: 봇 모드 / 순수 봇 역할.\n- alert/watch 채널 예외: 리뷰 키워드가 있어도 agent-slackbot으로 답글을 남겨.\n- 먼저 agent-slack으로 원본 스레드 replies를 읽어.\n- 답글은 {reply_command} 명령으로 남겨.\n- 공개 답글에는 사람의 부재, 대행, 대신 답변 같은 사람 대리 문구를 쓰지 마.\n- R2-D2처럼 신뢰할 수 있는 astromech droid가 기술 상태를 보고하는 느낌으로, 짧고 기계적인 한국어 상태/조치 요약을 남겨.\n- 마지막 문장은 반드시 :robot: 이모지로 끝내.";
 const defaultHandoffMessageTemplate =
   "{target} 아래 요청을 처리한 뒤, agent-slack으로 원본 스레드를 읽고 {reply_tool}으로 답글을 남겨줘.\n원본 메시지:\n```{message}```\n읽기: agent-slack message replies {origin_channel} {origin_thread_ts}\n답글: {reply_command}\n원본 링크: {permalink}";
-const ownerMentionReplyGuideTemplate =
-  '답글 가이드:\n- 먼저 agent-slack으로 원본 스레드 replies를 읽어.\n- 스레드에 <@{owner_user_id}> 답장이 이미 있으면, 네가 아는 메모리나 맥락 중 보충할 정보가 있을 때만 agent-slackbot으로 추가 답글을 보내. 이때는 "웅기님이 까먹으신 것 같아서 정보 보충드립니다."로 시작해.\n- 스레드에 <@{owner_user_id}> 답장이 없으면 agent-slackbot으로 "웅기님이 바쁘셔서 대신 답변드려요."처럼 웅기님 대신 답변한다는 점을 먼저 밝혀줘. 처리 요청이면 "웅기님이 바쁘셔서 대신 처리해 드립니다."처럼 시작해.\n- 이미 답했고 추가할 정보가 없으면 공개 답글을 남기지 마.';
+const delegatedBotModeReplyGuideTemplate =
+  '답글 가이드:\n- 모드: 봇 모드 / 민웅기 대행.\n- 먼저 agent-slack으로 원본 스레드 replies를 읽어.\n- 스레드에 <@{owner_user_id}> 답장이 이미 있으면, 네가 아는 메모리나 맥락 중 보충할 정보가 있을 때만 agent-slackbot으로 추가 답글을 보내. 이때는 "웅기님이 까먹으신 것 같아서 정보 보충드립니다."로 시작해.\n- 스레드에 <@{owner_user_id}> 답장이 없으면 agent-slackbot으로 "웅기님이 바쁘셔서 대신 답변드려요."처럼 웅기님 대신 답변한다는 점을 먼저 밝혀줘. 처리 요청이면 "웅기님이 바쁘셔서 대신 처리해 드립니다."처럼 시작해.\n- 이미 답했고 추가할 정보가 없으면 공개 답글을 남기지 마.';
 const ownerMentionRuleId = "owner-mention";
-const reviewReplyGuideTemplate =
-  "답글 가이드:\n- 리뷰 요청 예외: 읽기와 답글 모두 agent-slack을 사용해.\n- 먼저 agent-slack으로 원본 스레드 replies를 읽어.\n- 답글은 {reply_command} 명령으로 남겨.\n- 대리 답변 문구는 붙이지 말고 기존 agent-slack 답장 가이드라인을 따라.";
+const humanSimulationModeReplyGuideTemplate =
+  "답글 가이드:\n- 모드: 사람 시뮬레이션.\n- 리뷰 요청 예외: 읽기와 답글 모두 agent-slack을 사용해.\n- 먼저 agent-slack으로 원본 스레드 replies를 읽어.\n- 답글은 {reply_command} 명령으로 남겨.\n- 대리 답변 문구는 붙이지 말고 기존 agent-slack 답장 가이드라인을 따라.";
 const reviewReplyKeyword = "리뷰";
 
 export function buildHandoff(input: HandoffInput): Handoff | null {
@@ -65,7 +65,7 @@ export function buildHandoff(input: HandoffInput): Handoff | null {
       originChannel: input.event.channel,
       originThreadTs: input.event.thread_ts ?? input.event.ts,
       ownerUserId: input.ownerUserId,
-      replyGuideTemplate: alertChannelReplyGuideTemplate,
+      replyGuideTemplate: pureBotModeReplyGuideTemplate,
       replyTool: agentSlackbotReplyTool,
       ruleId: alertChannelRuleId,
       targetBotUserId: input.targetBotUserId,
@@ -146,13 +146,13 @@ function normalizeTemplateForReplyTool(
 function selectOwnerMentionReplyPlan(message: string): ReplyPlan {
   if (message.includes(reviewReplyKeyword)) {
     return {
-      replyGuideTemplate: reviewReplyGuideTemplate,
+      replyGuideTemplate: humanSimulationModeReplyGuideTemplate,
       replyTool: agentSlackReplyTool,
     };
   }
 
   return {
-    replyGuideTemplate: ownerMentionReplyGuideTemplate,
+    replyGuideTemplate: delegatedBotModeReplyGuideTemplate,
     replyTool: agentSlackbotReplyTool,
   };
 }

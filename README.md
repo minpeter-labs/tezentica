@@ -51,8 +51,17 @@ instead: read the thread with `agent-slack` and reply with
 
 Alert/watch channels override that review exception. For `ALERT_CHANNEL_IDS`,
 Tezentica always renders `agent-slackbot message send ... --thread ...` and
-asks the reply to open with a bot disclosure such as
-`웅기님이 부재중이라 봇이 대신 답변드립니다. :robot_face:`.
+uses pure bot mode: do not mention Woonggi being away or acting on his behalf,
+write as an operations/status bot, and end the public reply with `:robot:`.
+
+Tezentica currently injects three reply modes:
+
+- **Delegated bot mode** — owner-mention requests that should answer through
+  `agent-slackbot` on Woonggi's behalf.
+- **Pure bot mode** — alert/watch channel messages that should answer as an
+  operations bot, not as Woonggi's delegate.
+- **Human simulation mode** — owner-mention review requests that should use the
+  legacy `agent-slack` path.
 
 The instruction is configurable via `HANDOFF_MESSAGE_TEMPLATE` with the
 placeholders `{target}`, `{message}`, `{origin_channel}`, `{origin_thread_ts}`,
