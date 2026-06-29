@@ -52,16 +52,54 @@ describe("Slack handoff Worker alert flow", () => {
     expect(posted.text).toContain("agent-slack message replies CALERT");
     expect(posted.text).toContain("agent-slackbot message send CALERT");
     expect(posted.text).toContain(
-      '"웅기님이 바쁘셔서 대신 답변드려요."처럼 웅기님 대신 답변한다는 점을 먼저 밝혀줘.'
+      '"웅기님이 부재중이라 봇이 대신 답변드립니다. :robot_face:"처럼 시작해'
     );
-    expect(posted.text).toContain("스레드에 <@UOWNER> 답장이 이미 있으면");
-    expect(posted.text).toContain(
-      '"웅기님이 까먹으신 것 같아서 정보 보충드립니다."로 시작해'
-    );
-    expect(posted.text).toContain(
-      "이미 답했고 추가할 정보가 없으면 공개 답글을 남기지 마"
-    );
+    expect(posted.text).toContain("alert/watch 채널 예외");
     expect(posted.text).toContain("--thread 1710000000.000300");
+  });
+
+  it("keeps alert channel review messages on agent-slackbot with bot disclosure", async () => {
+    const slackRequests: Request[] = [];
+    const worker = createWorker<string>({
+      nowSeconds: () => 1_710_000_000,
+      slackTransport: createSlackTransport(slackRequests),
+    });
+    const env = createWorkerEnv({
+      ALERT_CHANNEL_IDS: "CALERT",
+      SLACK_BOT_USER_ID: "UTEZENTICA",
+    });
+    const body = JSON.stringify({
+      event: {
+        bot_id: "BALERT",
+        channel: "CALERT",
+        subtype: "bot_message",
+        text: "[critical] 리뷰 queue stuck",
+        ts: "1710000000.000300",
+        type: "message",
+      },
+      team_id: "T123",
+      type: "event_callback",
+    });
+
+    const response = await worker.fetch(
+      await createSignedSlackRequest(body),
+      env
+    );
+
+    expect(response.status).toBe(200);
+
+    const posts = postMessageRequests(slackRequests);
+    expect(posts).toHaveLength(1);
+
+    const posted = await readPostedMessage(posts[0]);
+    expect(posted.text).toContain("```[critical] 리뷰 queue stuck```");
+    expect(posted.text).toContain("agent-slackbot message send CALERT");
+    expect(posted.text).toContain(
+      '"웅기님이 부재중이라 봇이 대신 답변드립니다. :robot_face:"처럼 시작해'
+    );
+    expect(posted.text).toContain("alert/watch 채널 예외");
+    expect(posted.text).not.toContain("리뷰 요청 예외");
+    expect(posted.text).not.toContain("agent-slack message send CALERT");
   });
 
   it("ignores non-alert bot messages and Tezentica or target bot alert messages", async () => {

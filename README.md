@@ -8,8 +8,9 @@ agent (`TARGET_BOT_USER_ID`) in a private **home channel** (`HOME_CHANNEL_ID`,
 owner + bots only) with ready-to-run CLI instructions. The agent reads the
 original thread with `agent-slack` and usually replies in it with
 `agent-slackbot`, so the public channel never sees Tezentica's handoff chatter.
-Review requests are the exception: when the trigger text includes `리뷰`, both
-the read and reply instructions use `agent-slack`.
+Review requests are the exception: when an owner-mention trigger text includes
+`리뷰`, both the read and reply instructions use `agent-slack`. Alert/watch
+channels still always reply with `agent-slackbot`.
 
 ## Triggers
 
@@ -48,10 +49,16 @@ When the trigger text includes `리뷰`, Tezentica renders a legacy reply guide
 instead: read the thread with `agent-slack` and reply with
 `agent-slack message send ... --thread ...`.
 
+Alert/watch channels override that review exception. For `ALERT_CHANNEL_IDS`,
+Tezentica always renders `agent-slackbot message send ... --thread ...` and
+asks the reply to open with a bot disclosure such as
+`웅기님이 부재중이라 봇이 대신 답변드립니다. :robot_face:`.
+
 The instruction is configurable via `HANDOFF_MESSAGE_TEMPLATE` with the
 placeholders `{target}`, `{message}`, `{origin_channel}`, `{origin_thread_ts}`,
-and `{permalink}`. `{message}` is always substituted last so its contents can't
-be re-interpreted as a placeholder.
+`{owner_user_id}`, `{reply_tool}`, `{reply_command}`, and `{permalink}`.
+`{message}` is always substituted last so its contents can't be re-interpreted
+as a placeholder.
 
 > ⚠️ Posting auto-generated content under a human identity is a Slack
 > Developer-Policy gray area — fine for your **own account / internal use**, not

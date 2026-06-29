@@ -13,6 +13,8 @@ describe("renderHandoffMessage", () => {
     originChannel: "C123",
     originThreadTs: "1710000000.000100",
     ownerUserId: "UOWNER",
+    replyGuideTemplate:
+      "답글 가이드:\n- 먼저 agent-slack으로 원본 스레드 replies를 읽어.",
     replyTool: "agent-slackbot",
     ruleId: "owner-mention",
     targetBotUserId: "UR5BOT",
