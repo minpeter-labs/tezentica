@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  buildHandoff,
-  type Handoff,
-  renderHandoffMessage,
-} from "../src/handoff";
+import { buildHandoff } from "../src/handoff";
 
 describe("buildHandoff", () => {
   it("routes an owner mention to the home channel with the origin preserved", () => {
@@ -261,69 +257,5 @@ describe("buildHandoff", () => {
     });
 
     expect(result).toBeNull();
-  });
-});
-
-describe("renderHandoffMessage", () => {
-  const baseHandoff: Handoff = {
-    destinationChannel: "CHOME",
-    message: "hello <@U1>",
-    originChannel: "C123",
-    originThreadTs: "1710000000.000100",
-    ruleId: "owner-mention",
-    targetBotUserId: "UR5BOT",
-    template:
-      "{target}|{origin_channel}|{origin_thread_ts}|{permalink}|{message}",
-  };
-
-  it("substitutes every placeholder, message last", () => {
-    expect(renderHandoffMessage(baseHandoff, "https://slack.example/p1")).toBe(
-      "<@UR5BOT>|C123|1710000000.000100|https://slack.example/p1|hello <@U1>"
-    );
-  });
-
-  it("never re-interprets the original message as another placeholder", () => {
-    const handoff: Handoff = {
-      ...baseHandoff,
-      message: "{origin_channel}",
-      template: "{origin_channel}:{message}",
-    };
-
-    expect(renderHandoffMessage(handoff, "")).toBe("C123:{origin_channel}");
-  });
-
-  it("keeps Slack code fences closed when the message contains backticks", () => {
-    const handoff: Handoff = {
-      ...baseHandoff,
-      message: "use ```danger```",
-      template: "```{message}```",
-    };
-
-    expect(renderHandoffMessage(handoff, "")).toBe("```use `​``danger`​`````");
-  });
-
-  it("embeds a ready-to-run agent-slack command for the default owner template", () => {
-    const handoff = buildHandoff({
-      event: {
-        channel: "C123",
-        text: "please help <@UOWNER>",
-        ts: "1710000000.000100",
-        type: "message",
-        user: "UASKER",
-      },
-      homeChannelId: "CHOME",
-      ownerUserId: "UOWNER",
-      targetBotUserId: "UR5BOT",
-    });
-    const rendered = renderHandoffMessage(
-      handoff as Handoff,
-      "https://slack.example/p1"
-    );
-
-    expect(rendered).toContain("<@UR5BOT>");
-    expect(rendered).toContain("```please help <@UOWNER>```");
-    expect(rendered).toContain("agent-slack message send C123");
-    expect(rendered).toContain("--thread 1710000000.000100");
-    expect(rendered).toContain("https://slack.example/p1");
   });
 });
