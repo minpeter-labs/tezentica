@@ -54,6 +54,13 @@ describe("Slack handoff Worker alert flow", () => {
     expect(posted.text).toContain(
       '"웅기님이 바쁘셔서 대신 답변드려요."처럼 웅기님 대신 답변한다는 점을 먼저 밝혀줘.'
     );
+    expect(posted.text).toContain("스레드에 <@UOWNER> 답장이 이미 있으면");
+    expect(posted.text).toContain(
+      '"웅기님이 까먹으신 것 같아서 정보 보충드립니다."로 시작해'
+    );
+    expect(posted.text).toContain(
+      "이미 답했고 추가할 정보가 없으면 공개 답글을 남기지 마"
+    );
     expect(posted.text).toContain("--thread 1710000000.000300");
   });
 

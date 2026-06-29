@@ -28,15 +28,19 @@ channel and thread:
 ```original message```
 읽기: agent-slack message replies C123 1710000000.000100
 답글: agent-slackbot message send C123 "(답변)" --thread 1710000000.000100
-답글 가이드: "웅기님이 바쁘셔서 대신 답변드려요."처럼 웅기님 대신 답변한다는 점을 먼저 밝혀줘.
 원본 링크: https://…
+답글 가이드:
+- 먼저 agent-slack으로 원본 스레드 replies를 읽어.
+- 스레드에 <@OWNER_USER_ID> 답장이 이미 있으면, 네가 아는 메모리나 맥락 중 보충할 정보가 있을 때만 agent-slackbot으로 추가 답글을 보내. 이때는 "웅기님이 까먹으신 것 같아서 정보 보충드립니다."로 시작해.
+- 스레드에 <@OWNER_USER_ID> 답장이 없으면 agent-slackbot으로 "웅기님이 바쁘셔서 대신 답변드려요."처럼 웅기님 대신 답변한다는 점을 먼저 밝혀줘. 처리 요청이면 "웅기님이 바쁘셔서 대신 처리해 드립니다."처럼 시작해.
+- 이미 답했고 추가할 정보가 없으면 공개 답글을 남기지 마.
 ````
 
 The agent runs `agent-slack` for thread reads and `agent-slackbot` for thread
 replies. The runtime must be able to execute both CLIs, and `agent-slackbot`
 must be authenticated to the bot identity that should appear in the public
-thread. Default handoffs also tell the replying bot to open by making clear that
-it is answering on Woonggi's behalf.
+thread. Tezentica always appends the reply guide as a reminder, even when
+`HANDOFF_MESSAGE_TEMPLATE` overrides the main instruction.
 
 The instruction is configurable via `HANDOFF_MESSAGE_TEMPLATE` with the
 placeholders `{target}`, `{message}`, `{origin_channel}`, `{origin_thread_ts}`,
