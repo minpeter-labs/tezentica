@@ -47,8 +47,16 @@ describe("Slack handoff Worker flow", () => {
     expect(posted.thread_ts).toBeUndefined();
     expect(posted.text).toContain("<@UR5BOT>");
     expect(posted.text).toContain("```please check <@UOWNER>```");
+    expect(posted.text).toContain(
+      "agent-slackbot reaction add C123 1710000000.000100 robot_face"
+    );
     expect(posted.text).toContain("agent-slack message replies C123");
     expect(posted.text).toContain("agent-slackbot message send C123");
+    expect(
+      posted.text.indexOf(
+        "agent-slackbot reaction add C123 1710000000.000100 robot_face"
+      )
+    ).toBeLessThan(posted.text.indexOf("agent-slack message replies C123"));
     expect(posted.text).toContain("--thread 1710000000.000100");
     expect(posted.text).toContain(SLACK_PERMALINK);
   });
@@ -85,10 +93,13 @@ describe("Slack handoff Worker flow", () => {
     expect(posted.channel).toBe("CHOME");
     expect(posted.text).toContain("```<@UOWNER> 이 PR 리뷰해줘```");
     expect(posted.text).toContain(
+      "agent-slackbot reaction add C123 1710000000.000100 robot_face"
+    );
+    expect(posted.text).toContain(
       '답글: agent-slack message send C123 "(답변)" --thread 1710000000.000100'
     );
     expect(posted.text).toContain("리뷰 요청 예외");
-    expect(posted.text).not.toContain("agent-slackbot");
+    expect(posted.text).not.toContain("agent-slackbot message send");
   });
 
   it("ignores signed messages that do not mention the owner", async () => {

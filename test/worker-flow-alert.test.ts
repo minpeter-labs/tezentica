@@ -49,8 +49,16 @@ describe("Slack handoff Worker alert flow", () => {
     expect(posted.channel).toBe("CHOME");
     expect(posted.text).toContain("<@UR5BOT>");
     expect(posted.text).toContain("```[critical] API latency high```");
+    expect(posted.text).toContain(
+      "agent-slackbot reaction add CALERT 1710000000.000300 robot_face"
+    );
     expect(posted.text).toContain("agent-slack message replies CALERT");
     expect(posted.text).toContain("agent-slackbot message send CALERT");
+    expect(
+      posted.text.indexOf(
+        "agent-slackbot reaction add CALERT 1710000000.000300 robot_face"
+      )
+    ).toBeLessThan(posted.text.indexOf("agent-slack message replies CALERT"));
     expect(posted.text).toContain("모드: 봇 모드 / 순수 봇 역할");
     expect(posted.text).toContain(
       "마지막 문장은 반드시 :robot_face: 이모지로 끝내"
@@ -95,6 +103,9 @@ describe("Slack handoff Worker alert flow", () => {
 
     const posted = await readPostedMessage(posts[0]);
     expect(posted.text).toContain("```[critical] 리뷰 queue stuck```");
+    expect(posted.text).toContain(
+      "agent-slackbot reaction add CALERT 1710000000.000300 robot_face"
+    );
     expect(posted.text).toContain("agent-slackbot message send CALERT");
     expect(posted.text).toContain("모드: 봇 모드 / 순수 봇 역할");
     expect(posted.text).toContain(

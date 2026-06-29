@@ -11,6 +11,7 @@ describe("renderHandoffMessage", () => {
     destinationChannel: "CHOME",
     message: "hello <@U1>",
     originChannel: "C123",
+    originMessageTs: "1710000000.000100",
     originThreadTs: "1710000000.000100",
     ownerUserId: "UOWNER",
     replyGuideTemplate:
@@ -76,6 +77,9 @@ describe("renderHandoffMessage", () => {
 
     expect(rendered).toContain("<@UR5BOT>");
     expect(rendered).toContain("```please help <@UOWNER>```");
+    expect(rendered).toContain(
+      "agent-slackbot reaction add C123 1710000000.000100 robot_face"
+    );
     expect(rendered).toContain("agent-slack message replies C123");
     expect(rendered).toContain("agent-slackbot message send C123");
     expect(rendered).toContain(
@@ -113,6 +117,9 @@ describe("renderHandoffMessage", () => {
 
     expect(rendered).toContain("커스텀 요청: please help <@UOWNER>");
     expect(rendered).toContain("답글 가이드:");
+    expect(rendered).toContain(
+      "agent-slackbot reaction add C123 1710000000.000100 robot_face"
+    );
     expect(rendered).toContain("agent-slackbot");
     expect(rendered).toContain("추가할 정보가 없으면 공개 답글을 남기지 마");
   });
@@ -143,8 +150,11 @@ describe("renderHandoffMessage", () => {
     expect(rendered).toContain(
       '답글: agent-slack message send C123 "(답변)" --thread 1710000000.000100'
     );
+    expect(rendered).toContain(
+      "agent-slackbot reaction add C123 1710000000.000100 robot_face"
+    );
     expect(rendered).toContain("리뷰 요청 예외");
-    expect(rendered).not.toContain("agent-slackbot");
+    expect(rendered).not.toContain("agent-slackbot message send");
     expect(rendered).not.toContain("웅기님이 바쁘셔서 대신 답변드려요");
   });
 });

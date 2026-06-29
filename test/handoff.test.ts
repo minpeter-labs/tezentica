@@ -21,6 +21,7 @@ describe("buildHandoff", () => {
       destinationChannel: "CHOME",
       message: "please help <@UOWNER>",
       originChannel: "C123",
+      originMessageTs: "1710000000.000100",
       originThreadTs: "1710000000.000100",
       ruleId: "owner-mention",
       targetBotUserId: "UR5BOT",
@@ -119,6 +120,7 @@ describe("buildHandoff", () => {
     });
 
     expect(result?.originThreadTs).toBe("1700000000.000001");
+    expect(result?.originMessageTs).toBe("1710000000.000100");
   });
 
   it("renders alert channel severity analysis handoffs for bot messages", () => {
@@ -141,6 +143,7 @@ describe("buildHandoff", () => {
       destinationChannel: "CHOME",
       message: "[critical] API latency high",
       originChannel: "CALERT",
+      originMessageTs: "1710000000.000100",
       originThreadTs: "1710000000.000100",
       ruleId: "alert-channel",
     });
@@ -164,6 +167,7 @@ describe("buildHandoff", () => {
     });
 
     expect(result?.originThreadTs).toBe("1710000000.000100");
+    expect(result?.originMessageTs).toBe("1710000001.000200");
     expect(result?.ruleId).toBe("alert-channel");
   });
 
