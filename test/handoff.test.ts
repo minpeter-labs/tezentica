@@ -79,13 +79,11 @@ describe("buildHandoff", () => {
     expect(result).toBeNull();
   });
 
-  it("ignores messages authored by the owner to break the handoff loop", () => {
-    // This is what the target agent posts "as the owner" into the original
-    // thread; honoring it would re-trigger the owner-mention rule forever.
+  it("routes an owner-authored self-mention to the home channel", () => {
     const result = buildHandoff({
       event: {
         channel: "C123",
-        text: "<@UOWNER> 확인했습니다",
+        text: "<@UOWNER> 테젠티카 테스트 응답, 안녕하세요. 라고 응답하세요",
         ts: "1710000000.000100",
         type: "message",
         user: "UOWNER",
@@ -95,7 +93,14 @@ describe("buildHandoff", () => {
       targetBotUserId: "UR5BOT",
     });
 
-    expect(result).toBeNull();
+    expect(result).toMatchObject({
+      destinationChannel: "CHOME",
+      message: "<@UOWNER> 테젠티카 테스트 응답, 안녕하세요. 라고 응답하세요",
+      originChannel: "C123",
+      originThreadTs: "1710000000.000100",
+      ruleId: "owner-mention",
+      targetBotUserId: "UR5BOT",
+    });
   });
 
   it("uses an existing Slack thread timestamp when present", () => {

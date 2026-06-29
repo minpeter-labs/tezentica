@@ -38,18 +38,7 @@ const defaultHandoffMessageTemplate =
 const ownerMentionRuleId = "owner-mention";
 
 export function buildHandoff(input: HandoffInput): Handoff | null {
-  // Loop guards (must run first): never act on traffic from the private home
-  // channel, and never act on messages authored by the owner — the latter is
-  // exactly what the target agent posts "as the owner" into the original
-  // thread, so honoring it would re-trigger the handoff endlessly.
   if (input.event.channel === input.homeChannelId) {
-    return null;
-  }
-
-  if (
-    input.event.user !== undefined &&
-    input.event.user === input.ownerUserId
-  ) {
     return null;
   }
 

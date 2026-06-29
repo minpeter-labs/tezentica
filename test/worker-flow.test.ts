@@ -80,7 +80,7 @@ describe("Slack handoff Worker flow", () => {
     expect(slackRequests).toHaveLength(0);
   });
 
-  it("ignores an owner-authored message end-to-end so the reply-as-owner loop is broken", async () => {
+  it("routes an owner-authored self-mention end-to-end", async () => {
     const slackRequests: Request[] = [];
     const worker = createWorker<string>({
       nowSeconds: () => 1_710_000_000,
@@ -89,7 +89,7 @@ describe("Slack handoff Worker flow", () => {
     const body = JSON.stringify({
       event: {
         channel: "C123",
-        text: "<@UOWNER> 처리했습니다",
+        text: "<@UOWNER> 테젠티카 테스트 응답, 안녕하세요. 라고 응답하세요",
         ts: "1710000000.000100",
         type: "message",
         user: "UOWNER",
@@ -104,7 +104,16 @@ describe("Slack handoff Worker flow", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(slackRequests).toHaveLength(0);
+
+    const posts = postMessageRequests(slackRequests);
+    expect(posts).toHaveLength(1);
+
+    const posted = await readPostedMessage(posts[0]);
+    expect(posted.channel).toBe("CHOME");
+    expect(posted.text).toContain(
+      "```<@UOWNER> 테젠티카 테스트 응답, 안녕하세요. 라고 응답하세요```"
+    );
+    expect(posted.text).toContain("agent-slackbot message send C123");
   });
 
   it("ignores events originating in the home channel end-to-end", async () => {

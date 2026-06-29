@@ -48,8 +48,8 @@ be re-interpreted as a placeholder.
 ## Loop & privacy guards
 
 - Events originating in `HOME_CHANNEL_ID` are ignored.
-- Events authored by `OWNER_USER_ID` are ignored — this is what the target bot
-  posts "as the owner" into the original thread, so honoring it would loop.
+- Bot-message owner mentions are ignored, so `agent-slackbot` replies do not
+  retrigger the owner-mention handoff.
 - Never add the home channel to `ALERT_CHANNEL_IDS`.
 
 ## Reliability
