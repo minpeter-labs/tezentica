@@ -6,8 +6,10 @@ Tezentica keeps the automation invisible to the public channel. When a trigger
 fires, it does **not** reply in the public thread. Instead it pings the target
 agent (`TARGET_BOT_USER_ID`) in a private **home channel** (`HOME_CHANNEL_ID`,
 owner + bots only) with ready-to-run CLI instructions. The agent reads the
-original thread with `agent-slack` and replies in it with `agent-slackbot`, so
-the public channel never sees Tezentica's handoff chatter.
+original thread with `agent-slack` and usually replies in it with
+`agent-slackbot`, so the public channel never sees Tezentica's handoff chatter.
+Review requests are the exception: when the trigger text includes `리뷰`, both
+the read and reply instructions use `agent-slack`.
 
 ## Triggers
 
@@ -41,6 +43,10 @@ replies. The runtime must be able to execute both CLIs, and `agent-slackbot`
 must be authenticated to the bot identity that should appear in the public
 thread. Tezentica always appends the reply guide as a reminder, even when
 `HANDOFF_MESSAGE_TEMPLATE` overrides the main instruction.
+
+When the trigger text includes `리뷰`, Tezentica renders a legacy reply guide
+instead: read the thread with `agent-slack` and reply with
+`agent-slack message send ... --thread ...`.
 
 The instruction is configurable via `HANDOFF_MESSAGE_TEMPLATE` with the
 placeholders `{target}`, `{message}`, `{origin_channel}`, `{origin_thread_ts}`,

@@ -53,6 +53,44 @@ describe("Slack handoff Worker flow", () => {
     expect(posted.text).toContain(SLACK_PERMALINK);
   });
 
+  it("routes review owner mentions with legacy agent-slack reply guidance", async () => {
+    const slackRequests: Request[] = [];
+    const worker = createWorker<string>({
+      nowSeconds: () => 1_710_000_000,
+      slackTransport: createSlackTransport(slackRequests),
+    });
+    const body = JSON.stringify({
+      event: {
+        channel: "C123",
+        text: "<@UOWNER> 이 PR 리뷰해줘",
+        ts: "1710000000.000100",
+        type: "message",
+        user: "UASKER",
+      },
+      team_id: "T123",
+      type: "event_callback",
+    });
+
+    const response = await worker.fetch(
+      await createSignedSlackRequest(body),
+      createWorkerEnv()
+    );
+
+    expect(response.status).toBe(200);
+
+    const posts = postMessageRequests(slackRequests);
+    expect(posts).toHaveLength(1);
+
+    const posted = await readPostedMessage(posts[0]);
+    expect(posted.channel).toBe("CHOME");
+    expect(posted.text).toContain("```<@UOWNER> 이 PR 리뷰해줘```");
+    expect(posted.text).toContain(
+      '답글: agent-slack message send C123 "(답변)" --thread 1710000000.000100'
+    );
+    expect(posted.text).toContain("리뷰 요청 예외");
+    expect(posted.text).not.toContain("agent-slackbot");
+  });
+
   it("ignores signed messages that do not mention the owner", async () => {
     const slackRequests: Request[] = [];
     const worker = createWorker<string>({

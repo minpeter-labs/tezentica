@@ -13,6 +13,7 @@ describe("renderHandoffMessage", () => {
     originChannel: "C123",
     originThreadTs: "1710000000.000100",
     ownerUserId: "UOWNER",
+    replyTool: "agent-slackbot",
     ruleId: "owner-mention",
     targetBotUserId: "UR5BOT",
     template:
@@ -112,5 +113,36 @@ describe("renderHandoffMessage", () => {
     expect(rendered).toContain("답글 가이드:");
     expect(rendered).toContain("agent-slackbot");
     expect(rendered).toContain("추가할 정보가 없으면 공개 답글을 남기지 마");
+  });
+
+  it("uses the legacy agent-slack reply path when the trigger includes review", () => {
+    const handoff = buildHandoff({
+      event: {
+        channel: "C123",
+        text: "<@UOWNER> 이 PR 리뷰해줘",
+        ts: "1710000000.000100",
+        type: "message",
+        user: "UASKER",
+      },
+      handoffMessageTemplate:
+        '커스텀 요청: {message}\n답글: agent-slackbot message send {origin_channel} "(답변)" --thread {origin_thread_ts}',
+      homeChannelId: "CHOME",
+      ownerUserId: "UOWNER",
+      targetBotUserId: "UR5BOT",
+    });
+
+    if (handoff === null) {
+      throw new Error("expected owner mention to produce a handoff");
+    }
+
+    const rendered = renderHandoffMessage(handoff, "https://slack.example/p1");
+
+    expect(rendered).toContain("커스텀 요청: <@UOWNER> 이 PR 리뷰해줘");
+    expect(rendered).toContain(
+      '답글: agent-slack message send C123 "(답변)" --thread 1710000000.000100'
+    );
+    expect(rendered).toContain("리뷰 요청 예외");
+    expect(rendered).not.toContain("agent-slackbot");
+    expect(rendered).not.toContain("웅기님이 바쁘셔서 대신 답변드려요");
   });
 });
