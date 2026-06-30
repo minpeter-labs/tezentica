@@ -9,8 +9,9 @@ owner + bots only) with ready-to-run CLI instructions. The agent reads the
 original thread with `agent-slack` and usually replies in it with
 `agent-slackbot`, so the public channel never sees Tezentica's handoff chatter.
 Review requests are the exception: when an owner-mention trigger text includes
-`리뷰`, both the read and reply instructions use `agent-slack`. Alert/watch
-channels still always reply with `agent-slackbot`.
+`리뷰`, the read marker, read, and reply instructions use `agent-slack`, and
+the read marker is `:eyes:`. Alert/watch channels still always reply with
+`agent-slackbot`.
 
 ## Triggers
 
@@ -40,16 +41,17 @@ instruction with the exact `agent-slackbot` read-marker command,
 - 이미 답했고 추가할 정보가 없으면 공개 답글을 남기지 마.
 ````
 
-The agent runs `agent-slackbot reaction add ... robot_face` before reading,
-`agent-slack` for thread reads, and `agent-slackbot` for thread replies. The
-runtime must be able to execute both CLIs, and `agent-slackbot` must be
-authenticated to the bot identity that should appear in the public thread.
-Tezentica always appends the reply guide as a reminder, even when
+For the default path, the agent runs `agent-slackbot reaction add ... robot_face`
+before reading, `agent-slack` for thread reads, and `agent-slackbot` for thread
+replies. The runtime must be able to execute both CLIs, and `agent-slackbot`
+must be authenticated to the bot identity that should appear in the public
+thread. Tezentica always appends the reply guide as a reminder, even when
 `HANDOFF_MESSAGE_TEMPLATE` overrides the main instruction.
 
 When the trigger text includes `리뷰`, Tezentica renders a legacy reply guide
-instead: read the thread with `agent-slack` and reply with
-`agent-slack message send ... --thread ...`.
+instead: mark the original message with
+`agent-slack reaction add ... eyes`, read the thread with `agent-slack`, and
+reply with `agent-slack message send ... --thread ...`.
 
 Alert/watch channels override that review exception. For `ALERT_CHANNEL_IDS`,
 Tezentica always renders `agent-slackbot message send ... --thread ...` and

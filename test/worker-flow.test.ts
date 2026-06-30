@@ -93,8 +93,10 @@ describe("Slack handoff Worker flow", () => {
     expect(posted.channel).toBe("CHOME");
     expect(posted.text).toContain("```<@UOWNER> 이 PR 리뷰해줘```");
     expect(posted.text).toContain(
-      "agent-slackbot reaction add C123 1710000000.000100 robot_face"
+      "agent-slack reaction add C123 1710000000.000100 eyes"
     );
+    expect(posted.text).not.toContain("agent-slackbot reaction add");
+    expect(posted.text).toContain(":eyes: reaction");
     expect(posted.text).toContain(
       '답글: agent-slack message send C123 "(답변)" --thread 1710000000.000100'
     );

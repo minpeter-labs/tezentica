@@ -49,7 +49,7 @@ const delegatedBotModeReplyGuideTemplate =
   '답글 가이드:\n- 모드: 봇 모드 / 민웅기 대행.\n- 먼저 {read_marker_command} 명령으로 원본 메시지에 :robot_face: reaction을 남긴 뒤, agent-slack으로 원본 스레드 replies를 읽어.\n- 스레드에 <@{owner_user_id}> 답장이 이미 있으면, 네가 아는 메모리나 맥락 중 보충할 정보가 있을 때만 agent-slackbot으로 추가 답글을 보내. 이때는 "웅기님이 까먹으신 것 같아서 정보 보충드립니다."로 시작해.\n- 스레드에 <@{owner_user_id}> 답장이 없으면 agent-slackbot으로 "웅기님이 바쁘셔서 대신 답변드려요."처럼 웅기님 대신 답변한다는 점을 먼저 밝혀줘. 처리 요청이면 "웅기님이 바쁘셔서 대신 처리해 드립니다."처럼 시작해.\n- 이미 답했고 추가할 정보가 없으면 공개 답글을 남기지 마.';
 const ownerMentionRuleId = "owner-mention";
 const humanSimulationModeReplyGuideTemplate =
-  "답글 가이드:\n- 모드: 사람 시뮬레이션.\n- 리뷰 요청 예외: 실제 읽기와 답글은 모두 agent-slack을 사용해.\n- 먼저 {read_marker_command} 명령으로 원본 메시지에 :robot_face: reaction을 남긴 뒤, agent-slack으로 원본 스레드 replies를 읽어.\n- 답글은 {reply_command} 명령으로 남겨.\n- 대리 답변 문구는 붙이지 말고 기존 agent-slack 답장 가이드라인을 따라.";
+  "답글 가이드:\n- 모드: 사람 시뮬레이션.\n- 리뷰 요청 예외: 실제 읽기와 답글은 모두 agent-slack을 사용해.\n- 먼저 {read_marker_command} 명령으로 원본 메시지에 :eyes: reaction을 남긴 뒤, agent-slack으로 원본 스레드 replies를 읽어.\n- 답글은 {reply_command} 명령으로 남겨.\n- 대리 답변 문구는 붙이지 말고 기존 agent-slack 답장 가이드라인을 따라.";
 const reviewReplyKeyword = "리뷰";
 
 export function buildHandoff(input: HandoffInput): Handoff | null {
@@ -138,7 +138,11 @@ function renderReplyCommand(handoff: Handoff): string {
 }
 
 function renderReadMarkerCommand(handoff: Handoff): string {
-  return `agent-slackbot reaction add ${handoff.originChannel} ${handoff.originMessageTs} robot_face`;
+  if (handoff.replyTool === agentSlackReplyTool) {
+    return `${agentSlackReplyTool} reaction add ${handoff.originChannel} ${handoff.originMessageTs} eyes`;
+  }
+
+  return `${agentSlackbotReplyTool} reaction add ${handoff.originChannel} ${handoff.originMessageTs} robot_face`;
 }
 
 function normalizeTemplateForReplyTool(

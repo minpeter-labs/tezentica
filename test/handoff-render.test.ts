@@ -151,8 +151,10 @@ describe("renderHandoffMessage", () => {
       '답글: agent-slack message send C123 "(답변)" --thread 1710000000.000100'
     );
     expect(rendered).toContain(
-      "agent-slackbot reaction add C123 1710000000.000100 robot_face"
+      "agent-slack reaction add C123 1710000000.000100 eyes"
     );
+    expect(rendered).not.toContain("agent-slackbot reaction add");
+    expect(rendered).toContain(":eyes: reaction");
     expect(rendered).toContain("리뷰 요청 예외");
     expect(rendered).not.toContain("agent-slackbot message send");
     expect(rendered).not.toContain("웅기님이 바쁘셔서 대신 답변드려요");
